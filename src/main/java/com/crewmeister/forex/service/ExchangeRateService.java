@@ -211,4 +211,53 @@ public class ExchangeRateService {
 
         log.info("Exchange rate synchronization completed");
     }
+
+    /**
+     * Syncs only the latest exchange rates from Bundesbank API.
+     * Used by scheduled job for daily updates.
+     * Updates existing records or inserts new ones (upsert logic).
+     */
+    @Transactional
+    public int syncLatestExchangeRates() {
+        log.info("Starting latest exchange rate synchronization");
+
+        List<ExchangeRateDataDto> latestRates = bundesbankClient.fetchLatestExchangeRates();
+        int updatedCount = 0;
+        int insertedCount = 0;
+
+        for (ExchangeRateDataDto dto : latestRates) {
+            // Check if exchange rate already exists for this currency pair and date
+            ExchangeRate existingRate = exchangeRateRepository
+                    .findBySourceCurrencyAndTargetCurrencyAndDate(
+                            dto.getSourceCurrency(),
+                            dto.getTargetCurrency(),
+                            dto.getDate())
+                    .orElse(null);
+
+            if (existingRate != null) {
+                // Update existing record
+                existingRate.setRate(dto.getRate());
+                existingRate.setDiffPercent(dto.getDiffPercent());
+                existingRate.setUpdatedBy("SCHEDULER");
+                exchangeRateRepository.save(existingRate);
+                updatedCount++;
+            } else {
+                // Insert new record
+                ExchangeRate newRate = new ExchangeRate();
+                newRate.setSourceCurrency(dto.getSourceCurrency());
+                newRate.setTargetCurrency(dto.getTargetCurrency());
+                newRate.setDate(dto.getDate());
+                newRate.setRate(dto.getRate());
+                newRate.setFrequency(dto.getFrequency());
+                newRate.setDiffPercent(dto.getDiffPercent());
+                newRate.setCreatedBy("SCHEDULER");
+                exchangeRateRepository.save(newRate);
+                insertedCount++;
+            }
+        }
+
+        log.info("Latest exchange rate synchronization completed - Inserted: {}, Updated: {}", 
+                insertedCount, updatedCount);
+        return insertedCount + updatedCount;
+    }
 }

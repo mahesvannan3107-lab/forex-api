@@ -1,8 +1,11 @@
 package com.crewmeister.forex.client;
 
+import com.crewmeister.forex.config.BundesbankApiConfig;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.BufferedReader;
 import java.io.StringReader;
@@ -15,17 +18,13 @@ import java.util.*;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class BundesbankClient {
 
-    private static final String BUNDESBANK_API_URL = "https://api.statistiken.bundesbank.de/rest/data/BBEX3";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final int DEFAULT_OBSERVATIONS = 100;
 
-    private final RestTemplate restTemplate;
-
-    public BundesbankClient() {
-        this.restTemplate = new RestTemplate();
-    }
+    private final BundesbankApiConfig apiConfig;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     /**
      * Fetches exchange rates for all currencies from Bundesbank API in a single call.
@@ -35,8 +34,7 @@ public class BundesbankClient {
     public List<ExchangeRateDataDto> fetchAllExchangeRates() {
         try {
             // Wildcard API call: D..EUR.BB.AC.000 fetches all currencies
-            String url = String.format("%s/D..EUR.BB.AC.000?format=sdmx_csv&lang=en&lastNObservations=%d",
-                    BUNDESBANK_API_URL, DEFAULT_OBSERVATIONS);
+            String url = buildApiUrl(apiConfig.getDefaultObservations());
 
             log.info("Fetching all exchange rates from: {}", url);
             String csvData = restTemplate.getForObject(url, String.class);
@@ -146,6 +144,47 @@ public class BundesbankClient {
         }
 
         return result;
+    }
+
+    /**
+     * Fetches only the latest exchange rates for all currencies (1 observation per currency).
+     * Used for daily scheduled updates.
+     */
+    public List<ExchangeRateDataDto> fetchLatestExchangeRates() {
+        try {
+            // Fetch only the latest observation for all currencies
+            String url = buildApiUrl(1);
+
+            log.info("Fetching latest exchange rates from: {}", url);
+            String csvData = restTemplate.getForObject(url, String.class);
+
+            if (csvData == null || csvData.isEmpty()) {
+                log.warn("No data received from Bundesbank API");
+                return Collections.emptyList();
+            }
+
+            List<ExchangeRateDataDto> result = parseAllCurrenciesData(csvData);
+            log.info("Successfully fetched {} latest exchange rate records", result.size());
+            return result;
+
+        } catch (Exception e) {
+            log.error("Error fetching latest exchange rates: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Builds the API URL using Spring's UriComponentsBuilder for type-safe URL construction.
+     */
+    private String buildApiUrl(int observations) {
+        return UriComponentsBuilder
+                .fromHttpUrl(apiConfig.getBaseUrl())
+                .path("/{endpoint}")
+                .queryParam("format", apiConfig.getFormat())
+                .queryParam("lang", apiConfig.getLanguage())
+                .queryParam("lastNObservations", observations)
+                .buildAndExpand(apiConfig.getEndpoint().getAllCurrencies())
+                .toUriString();
     }
 
     /**
