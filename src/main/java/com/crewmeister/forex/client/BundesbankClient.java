@@ -178,7 +178,7 @@ public class BundesbankClient {
      */
     private String buildApiUrl(int observations) {
         return UriComponentsBuilder
-                .fromHttpUrl(apiConfig.getBaseUrl())
+                .fromUriString(apiConfig.getBaseUrl())
                 .path("/{endpoint}")
                 .queryParam("format", apiConfig.getFormat())
                 .queryParam("lang", apiConfig.getLanguage())

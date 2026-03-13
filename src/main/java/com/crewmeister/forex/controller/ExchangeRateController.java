@@ -1,5 +1,6 @@
 package com.crewmeister.forex.controller;
 
+import com.crewmeister.forex.dto.ConversionDto;
 import com.crewmeister.forex.dto.ExchangeRateDto;
 import com.crewmeister.forex.dto.ExchangeRatesByDateDto;
 import com.crewmeister.forex.service.ExchangeRateService;
@@ -85,6 +86,33 @@ public class ExchangeRateController {
             ExchangeRateDto rate = exchangeRateService.getExchangeRate(base, target, date);
             return ResponseEntity.ok(rate);
         }
+    }
+
+    @Operation(
+            summary = "Convert currency amount",
+            description = "Converts an amount from one currency to another. " +
+                    "Uses latest exchange rate if no date is provided, or the rate on the specific date."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully converted currency amount"),
+            @ApiResponse(responseCode = "404", description = "Exchange rate not found for the given currency pair")
+    })
+    @GetMapping("/convert")
+    public ResponseEntity<ConversionDto> convertCurrency(
+            @Parameter(description = "Source currency code", example = "EUR", required = true)
+            @RequestParam String from,
+            @Parameter(description = "Target currency code", example = "USD", required = true)
+            @RequestParam String to,
+            @Parameter(description = "Amount to convert", example = "100", required = true)
+            @RequestParam java.math.BigDecimal amount,
+            @Parameter(description = "Specific date for exchange rate (YYYY-MM-DD). Uses latest if not provided", example = "2026-03-01")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        log.info("GET /api/forex-rates/convert?from={}&to={}&amount={}&date={}",
+                from, to, amount, date);
+
+        ConversionDto conversion = exchangeRateService.convertCurrency(from, to, amount, date);
+        return ResponseEntity.ok(conversion);
     }
 
 }
