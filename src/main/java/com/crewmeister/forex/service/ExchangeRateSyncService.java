@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,31 +32,37 @@ public class ExchangeRateSyncService implements IExchangeRateSyncService {
     /**
      * Syncs exchange rate data from Bundesbank API.
      * Fetches all available columns and maps them to ExchangeRate entity.
+     * Uses batch insert for better performance.
      */
     @Transactional
+    @Override
     public void syncExchangeRates() {
         log.info("Starting exchange rate synchronization");
 
         List<ExchangeRateDataDto> allRates = bundesbankClient.fetchAllExchangeRates();
 
-        for (ExchangeRateDataDto dto : allRates) {
-            ExchangeRate exchangeRate = exchangeRateMapper.toEntity(dto, SYSTEM_USER_ADMIN);
-            exchangeRateRepository.save(exchangeRate);
-        }
+        List<ExchangeRate> exchangeRates = allRates.stream()
+                .map(dto -> exchangeRateMapper.toEntity(dto, SYSTEM_USER_ADMIN))
+                .toList();
 
-        log.info("Exchange rate synchronization completed");
+        exchangeRateRepository.saveAll(exchangeRates);
+
+        log.info("Exchange rate synchronization completed - {} records saved", exchangeRates.size());
     }
 
     /**
      * Syncs only the latest exchange rates from Bundesbank API.
      * Used by scheduled job for daily updates.
      * Updates existing records or inserts new ones (upsert logic).
+     * Uses batch save for better performance.
      */
     @Transactional
+    @Override
     public int syncLatestExchangeRates() {
         log.info("Starting latest exchange rate synchronization");
 
         List<ExchangeRateDataDto> latestRates = bundesbankClient.fetchLatestExchangeRates();
+        List<ExchangeRate> toSave = new ArrayList<>();
         int updatedCount = 0;
         int insertedCount = 0;
 
@@ -69,14 +76,16 @@ public class ExchangeRateSyncService implements IExchangeRateSyncService {
 
             if (existingRate != null) {
                 exchangeRateMapper.updateEntity(existingRate, dto, SYSTEM_USER_SCHEDULER);
-                exchangeRateRepository.save(existingRate);
+                toSave.add(existingRate);
                 updatedCount++;
             } else {
                 ExchangeRate newRate = exchangeRateMapper.toEntity(dto, SYSTEM_USER_SCHEDULER);
-                exchangeRateRepository.save(newRate);
+                toSave.add(newRate);
                 insertedCount++;
             }
         }
+
+        exchangeRateRepository.saveAll(toSave);
 
         log.info("Latest exchange rate synchronization completed - Inserted: {}, Updated: {}", 
                 insertedCount, updatedCount);
