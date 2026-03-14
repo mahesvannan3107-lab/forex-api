@@ -11,6 +11,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,23 +33,34 @@ public class ExchangeRateController {
     @Operation(
             summary = "Get exchange rates from base currency",
             description = "Retrieves exchange rates from a base currency to all target currencies, grouped by date. " +
-                    "Supports latest rates, specific date, or all dates."
+                    "Supports latest rates, specific date, or all dates. Use pagination for large datasets."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved exchange rates grouped by date"),
             @ApiResponse(responseCode = "404", description = "Currency not found")
     })
     @GetMapping("/{base}")
-    public ResponseEntity<List<ExchangeRatesByDateDto>> getExchangeRatesFromBase(
+    public ResponseEntity<?> getExchangeRatesFromBase(
             @Parameter(description = "Base/source currency code (e.g., EUR, USD)", example = "EUR")
             @PathVariable String base,
             @Parameter(description = "Specific date for exchange rates (YYYY-MM-DD)", example = "2026-03-10")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @Parameter(description = "Return all dates with exchange rate data", example = "false")
-            @RequestParam(required = false, defaultValue = "false") Boolean allDates) {
+            @RequestParam(required = false, defaultValue = "false") Boolean allDates,
+            @Parameter(description = "Page number (0-indexed)", example = "0")
+            @RequestParam(required = false) Integer page,
+            @Parameter(description = "Page size", example = "20")
+            @RequestParam(required = false) Integer size) {
 
-        log.info("GET /api/forex-rates/{} - date={}, allDates={}",
-                base, date, allDates);
+        log.info("GET /api/forex-rates/{} - date={}, allDates={}, page={}, size={}",
+                base, date, allDates, page, size);
+
+        // Use pagination if page/size provided and allDates=true
+        if (allDates && page != null && size != null) {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<ExchangeRatesByDateDto> paginatedRates = exchangeRateService.getExchangeRatesFromGroupedPaginated(base, pageable);
+            return ResponseEntity.ok(paginatedRates);
+        }
 
         List<ExchangeRatesByDateDto> rates = exchangeRateService.getExchangeRatesFromGrouped(
                 base, date, allDates);
@@ -56,7 +70,7 @@ public class ExchangeRateController {
     @Operation(
             summary = "Get exchange rate for currency pair",
             description = "Retrieves exchange rate(s) for a specific currency pair. " +
-                    "Returns single rate by default, or list for all dates."
+                    "Returns single rate by default, or list for all dates. Use pagination for large datasets."
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved exchange rate(s)"),
@@ -71,12 +85,24 @@ public class ExchangeRateController {
             @Parameter(description = "Specific date (YYYY-MM-DD)", example = "2026-03-10")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @Parameter(description = "Return all dates with exchange rate data", example = "false")
-            @RequestParam(required = false, defaultValue = "false") Boolean allDates) {
+            @RequestParam(required = false, defaultValue = "false") Boolean allDates,
+            @Parameter(description = "Page number (0-indexed)", example = "0")
+            @RequestParam(required = false) Integer page,
+            @Parameter(description = "Page size", example = "20")
+            @RequestParam(required = false) Integer size) {
 
-        log.info("GET /api/forex-rates/{}/{} - date={}, allDates={}",
-                base, target, date, allDates);
+        log.info("GET /api/forex-rates/{}/{} - date={}, allDates={}, page={}, size={}",
+                base, target, date, allDates, page, size);
 
         if (allDates) {
+            // Use pagination if page/size provided
+            if (page != null && size != null) {
+                Pageable pageable = PageRequest.of(page, size);
+                Page<ExchangeRateDto> paginatedRates = exchangeRateService.getExchangeRateHistoryPaginated(
+                        base, target, pageable);
+                return ResponseEntity.ok(paginatedRates);
+            }
+            
             // Return list for all dates
             List<ExchangeRateDto> rates = exchangeRateService.getExchangeRateHistory(
                     base, target, date);

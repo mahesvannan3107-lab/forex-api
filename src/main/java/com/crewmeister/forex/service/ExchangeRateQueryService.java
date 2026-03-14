@@ -8,6 +8,9 @@ import com.crewmeister.forex.mapper.ExchangeRateMapper;
 import com.crewmeister.forex.repository.ExchangeRateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -140,6 +143,78 @@ public class ExchangeRateQueryService implements IExchangeRateQueryService {
         return rates.stream()
                 .map(exchangeRateMapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all exchange rates from a base currency with pagination by date.
+     * Each page contains grouped rates for N dates (where N = page size).
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public Page<ExchangeRatesByDateDto> getExchangeRatesFromGroupedPaginated(String base, Pageable pageable) {
+        log.debug("Fetching paginated exchange rates from {} - page: {}, size: {}", 
+                base, pageable.getPageNumber(), pageable.getPageSize());
+
+        String upperBase = base.toUpperCase();
+        
+        // Get paginated distinct dates
+        Page<LocalDate> datesPage = exchangeRateRepository.findDistinctDatesBySourceCurrency(upperBase, pageable);
+        
+        if (datesPage.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        
+        // Fetch all rates for these dates
+        List<LocalDate> dates = datesPage.getContent();
+        List<ExchangeRate> rates = exchangeRateRepository.findBySourceCurrencyAndDateIn(upperBase, dates);
+        
+        // Group by date
+        Map<LocalDate, Map<String, BigDecimal>> groupedByDate = rates.stream()
+                .collect(Collectors.groupingBy(
+                        ExchangeRate::getDate,
+                        LinkedHashMap::new,
+                        Collectors.toMap(
+                                ExchangeRate::getTargetCurrency,
+                                ExchangeRate::getRate,
+                                (r1, r2) -> r1,
+                                LinkedHashMap::new
+                        )
+                ));
+        
+        // Convert to DTOs maintaining date order
+        List<ExchangeRatesByDateDto> content = dates.stream()
+                .filter(groupedByDate::containsKey)
+                .map(date -> new ExchangeRatesByDateDto(date, upperBase, groupedByDate.get(date)))
+                .collect(Collectors.toList());
+        
+        return new PageImpl<>(content, pageable, datesPage.getTotalElements());
+    }
+
+    /**
+     * Get exchange rate history for a currency pair with pagination.
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public Page<ExchangeRateDto> getExchangeRateHistoryPaginated(String base, String target, Pageable pageable) {
+        log.debug("Fetching paginated exchange rate history from {} to {} - page: {}, size: {}", 
+                base, target, pageable.getPageNumber(), pageable.getPageSize());
+
+        String upperBase = base.toUpperCase();
+        String upperTarget = target.toUpperCase();
+
+        Page<ExchangeRate> ratesPage = exchangeRateRepository
+                .findBySourceCurrencyAndTargetCurrencyOrderByDateDesc(upperBase, upperTarget, pageable);
+
+        if (ratesPage.isEmpty()) {
+            // Try inverse pair
+            Page<ExchangeRate> inverseRatesPage = exchangeRateRepository
+                    .findBySourceCurrencyAndTargetCurrencyOrderByDateDesc(upperTarget, upperBase, pageable);
+            
+            return inverseRatesPage.map(this::calculateInverseRate)
+                    .map(exchangeRateMapper::toDto);
+        }
+
+        return ratesPage.map(exchangeRateMapper::toDto);
     }
 
     /**

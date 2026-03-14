@@ -1,10 +1,12 @@
 package com.crewmeister.forex.service;
 
 import com.crewmeister.forex.dto.ConversionDto;
-import com.crewmeister.forex.dto.ExchangeRatesByDateDto;
 import com.crewmeister.forex.dto.ExchangeRateDto;
+import com.crewmeister.forex.dto.ExchangeRatesByDateDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -76,5 +78,21 @@ public class ExchangeRateService {
      */
     public int syncLatestExchangeRates() {
         return exchangeRateSyncService.syncLatestExchangeRates();
+    }
+
+    /**
+     * Get all exchange rates from a base currency with pagination by date.
+     * Delegates to ExchangeRateQueryService.
+     */
+    public Page<ExchangeRatesByDateDto> getExchangeRatesFromGroupedPaginated(String base, Pageable pageable) {
+        return exchangeRateQueryService.getExchangeRatesFromGroupedPaginated(base, pageable);
+    }
+
+    /**
+     * Get exchange rate history for a currency pair with pagination.
+     * Delegates to ExchangeRateQueryService.
+     */
+    public Page<ExchangeRateDto> getExchangeRateHistoryPaginated(String base, String target, Pageable pageable) {
+        return exchangeRateQueryService.getExchangeRateHistoryPaginated(base, target, pageable);
     }
 }

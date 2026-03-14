@@ -1,6 +1,8 @@
 package com.crewmeister.forex.repository;
 
 import com.crewmeister.forex.entity.ExchangeRate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,6 +18,9 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRate, Long
     // Find all by source currency ordered by date descending
     List<ExchangeRate> findBySourceCurrencyOrderByDateDesc(String sourceCurrency);
 
+    // Find all by source currency with pagination
+    Page<ExchangeRate> findBySourceCurrencyOrderByDateDesc(String sourceCurrency, Pageable pageable);
+
     // Find by source currency and date (all target currencies)
     List<ExchangeRate> findBySourceCurrencyAndDate(String sourceCurrency, LocalDate date);
 
@@ -29,6 +34,10 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRate, Long
     List<ExchangeRate> findBySourceCurrencyAndTargetCurrencyOrderByDateDesc(
             String sourceCurrency, String targetCurrency);
 
+    // Find by source and target currency with pagination
+    Page<ExchangeRate> findBySourceCurrencyAndTargetCurrencyOrderByDateDesc(
+            String sourceCurrency, String targetCurrency, Pageable pageable);
+
     // Find latest rate by source and target (first result ordered by date desc)
     default Optional<ExchangeRate> findLatestRateBySourceAndTarget(String sourceCurrency, String targetCurrency) {
         List<ExchangeRate> rates = findBySourceCurrencyAndTargetCurrencyOrderByDateDesc(sourceCurrency, targetCurrency);
@@ -38,5 +47,13 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRate, Long
     // Find by source, target, and date
     Optional<ExchangeRate> findBySourceCurrencyAndTargetCurrencyAndDate(
             String sourceCurrency, String targetCurrency, LocalDate date);
+
+    // Find distinct dates for a source currency with pagination (for grouped pagination)
+    @Query("SELECT DISTINCT e.date FROM ExchangeRate e WHERE e.sourceCurrency = :sourceCurrency ORDER BY e.date DESC")
+    Page<LocalDate> findDistinctDatesBySourceCurrency(@Param("sourceCurrency") String sourceCurrency, Pageable pageable);
+
+    // Find all rates for a source currency and list of dates
+    @Query("SELECT e FROM ExchangeRate e WHERE e.sourceCurrency = :sourceCurrency AND e.date IN :dates ORDER BY e.date DESC")
+    List<ExchangeRate> findBySourceCurrencyAndDateIn(@Param("sourceCurrency") String sourceCurrency, @Param("dates") List<LocalDate> dates);
 }
 

@@ -9,6 +9,9 @@ import com.crewmeister.forex.service.ExchangeRateService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -17,11 +20,13 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -256,5 +261,170 @@ class ExchangeRateControllerTest {
                         .param("amount", "100"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("'from' and 'to' currencies must be different"));
+    }
+
+    @Test
+    void getExchangeRatesFromBase_WithPagination_ReturnsPagedResults() throws Exception {
+        Map<String, BigDecimal> rates1 = new LinkedHashMap<>();
+        rates1.put("USD", new BigDecimal("1.1641"));
+        rates1.put("GBP", new BigDecimal("0.8590"));
+        
+        Map<String, BigDecimal> rates2 = new LinkedHashMap<>();
+        rates2.put("USD", new BigDecimal("1.1600"));
+        rates2.put("GBP", new BigDecimal("0.8550"));
+
+        ExchangeRatesByDateDto dto1 = new ExchangeRatesByDateDto(
+                LocalDate.of(2026, 3, 1), "EUR", rates1);
+        ExchangeRatesByDateDto dto2 = new ExchangeRatesByDateDto(
+                LocalDate.of(2026, 2, 28), "EUR", rates2);
+
+        Page<ExchangeRatesByDateDto> page = new PageImpl<>(
+                Arrays.asList(dto1, dto2),
+                PageRequest.of(0, 2),
+                10
+        );
+
+        when(exchangeRateService.getExchangeRatesFromGroupedPaginated(eq("EUR"), any()))
+                .thenReturn(page);
+
+        mockMvc.perform(get("/api/forex-rates/EUR")
+                        .param("allDates", "true")
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.totalElements").value(10))
+                .andExpect(jsonPath("$.totalPages").value(5))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(false))
+                .andExpect(jsonPath("$.content[0].baseCurrency").value("EUR"))
+                .andExpect(jsonPath("$.content[0].rates.USD").value(1.1641));
+    }
+
+    @Test
+    void getExchangeRatesFromBase_WithPaginationLastPage_ReturnsPagedResults() throws Exception {
+        Map<String, BigDecimal> rates = new LinkedHashMap<>();
+        rates.put("USD", new BigDecimal("1.1641"));
+
+        ExchangeRatesByDateDto dto = new ExchangeRatesByDateDto(
+                LocalDate.of(2026, 3, 1), "EUR", rates);
+
+        Page<ExchangeRatesByDateDto> page = new PageImpl<>(
+                List.of(dto),
+                PageRequest.of(4, 2),
+                9
+        );
+
+        when(exchangeRateService.getExchangeRatesFromGroupedPaginated(eq("EUR"), any()))
+                .thenReturn(page);
+
+        mockMvc.perform(get("/api/forex-rates/EUR")
+                        .param("allDates", "true")
+                        .param("page", "4")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.first").value(false))
+                .andExpect(jsonPath("$.last").value(true))
+                .andExpect(jsonPath("$.content[0].baseCurrency").value("EUR"));
+    }
+
+    @Test
+    void getExchangeRate_HistoryWithPagination_ReturnsPagedResults() throws Exception {
+        ExchangeRateDto dto1 = new ExchangeRateDto(
+                "EUR/USD", "EUR", "USD",
+                LocalDate.of(2026, 3, 1),
+                new BigDecimal("1.1641"),
+                "1 EUR = 1.1641 USD"
+        );
+        ExchangeRateDto dto2 = new ExchangeRateDto(
+                "EUR/USD", "EUR", "USD",
+                LocalDate.of(2026, 2, 28),
+                new BigDecimal("1.1600"),
+                "1 EUR = 1.1600 USD"
+        );
+
+        Page<ExchangeRateDto> page = new PageImpl<>(
+                Arrays.asList(dto1, dto2),
+                PageRequest.of(0, 2),
+                100
+        );
+
+        when(exchangeRateService.getExchangeRateHistoryPaginated(eq("EUR"), eq("USD"), any()))
+                .thenReturn(page);
+
+        mockMvc.perform(get("/api/forex-rates/EUR/USD")
+                        .param("allDates", "true")
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.totalElements").value(100))
+                .andExpect(jsonPath("$.totalPages").value(50))
+                .andExpect(jsonPath("$.content[0].rate").value(1.1641))
+                .andExpect(jsonPath("$.content[1].rate").value(1.1600));
+    }
+
+    @Test
+    void getExchangeRatesFromBase_WithoutPagination_ReturnsListNotPage() throws Exception {
+        Map<String, BigDecimal> rates = new LinkedHashMap<>();
+        rates.put("USD", new BigDecimal("1.1641"));
+
+        ExchangeRatesByDateDto dto = new ExchangeRatesByDateDto(
+                LocalDate.of(2026, 3, 1),
+                "EUR",
+                rates
+        );
+
+        when(exchangeRateService.getExchangeRatesFromGrouped("EUR", null, true))
+                .thenReturn(Collections.singletonList(dto));
+
+        mockMvc.perform(get("/api/forex-rates/EUR")
+                        .param("allDates", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].baseCurrency").value("EUR"));
+    }
+
+    @Test
+    void getExchangeRate_HistoryWithoutPagination_ReturnsListNotPage() throws Exception {
+        ExchangeRateDto dto = new ExchangeRateDto(
+                "EUR/USD", "EUR", "USD",
+                LocalDate.of(2026, 3, 1),
+                new BigDecimal("1.1641"),
+                "1 EUR = 1.1641 USD"
+        );
+
+        when(exchangeRateService.getExchangeRateHistory("EUR", "USD", null))
+                .thenReturn(List.of(dto));
+
+        mockMvc.perform(get("/api/forex-rates/EUR/USD")
+                        .param("allDates", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].rate").value(1.1641));
+    }
+
+    @Test
+    void getExchangeRatesFromBase_PaginationWithoutAllDates_IgnoresPagination() throws Exception {
+        Map<String, BigDecimal> rates = new LinkedHashMap<>();
+        rates.put("USD", new BigDecimal("1.1641"));
+
+        ExchangeRatesByDateDto dto = new ExchangeRatesByDateDto(
+                LocalDate.of(2026, 3, 1),
+                "EUR",
+                rates
+        );
+
+        when(exchangeRateService.getExchangeRatesFromGrouped("EUR", null, false))
+                .thenReturn(Collections.singletonList(dto));
+
+        mockMvc.perform(get("/api/forex-rates/EUR")
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
     }
 }
