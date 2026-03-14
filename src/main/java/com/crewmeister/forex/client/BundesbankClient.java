@@ -24,7 +24,7 @@ public class BundesbankClient {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final BundesbankApiConfig apiConfig;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     /**
      * Fetches exchange rates for all currencies from Bundesbank API in a single call.

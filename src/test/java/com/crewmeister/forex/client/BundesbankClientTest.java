@@ -8,7 +8,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -45,8 +44,6 @@ class BundesbankClientTest {
         lenient().when(apiConfig.getLanguage()).thenReturn("en");
         lenient().when(apiConfig.getDefaultObservations()).thenReturn(100);
         lenient().when(apiConfig.getEndpoint()).thenReturn(endpoint);
-
-        ReflectionTestUtils.setField(bundesbankClient, "restTemplate", restTemplate);
     }
 
     @Test
