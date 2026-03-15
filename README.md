@@ -169,13 +169,13 @@ curl -X GET http://localhost:8080/api/currencies
 
 ### 2. Get All EUR-FX Exchange Rates (All Available Dates)
 
-**Endpoint:** `GET /api/forex-rates/{base}`
+**Endpoint:** `GET /api/forex-rates/{base}/history`
 
 **Description:** Returns all EUR-FX exchange rates at all available dates as a collection, grouped by date.
 
 **Request:**
 ```bash
-curl -X GET http://localhost:8080/api/forex-rates/EUR
+curl -X GET http://localhost:8080/api/forex-rates/EUR/history
 ```
 
 **Response:**
@@ -212,7 +212,7 @@ curl -X GET http://localhost:8080/api/forex-rates/EUR
 
 **Request:**
 ```bash
-curl -X GET "http://localhost:8080/api/forex-rates/EUR?date=2026-03-01"
+curl -X GET "http://localhost:8080/api/forex-rates/EUR?date=2026-03-13"
 ```
 
 **Response:**
@@ -240,7 +240,7 @@ curl -X GET "http://localhost:8080/api/forex-rates/EUR?date=2026-03-01"
 
 **Request:**
 ```bash
-curl -X GET "http://localhost:8080/api/forex-rates/convert?from=USD&to=EUR&amount=100&date=2026-03-01"
+curl -X GET "http://localhost:8080/api/forex-rates/convert?from=USD&to=EUR&amount=100&date=2026-03-13"
 ```
 
 **Response:**
@@ -250,8 +250,33 @@ curl -X GET "http://localhost:8080/api/forex-rates/convert?from=USD&to=EUR&amoun
   "fromAmount": 100.00,
   "toCurrency": "EUR",
   "toAmount": 92.40,
-  "date": "2026-03-01",
+  "date": "2026-03-13",
   "exchangeRate": 0.9240
+}
+```
+
+---
+
+### 5. Get Specific Currency Pair Exchange Rate
+
+**Endpoint:** `GET /api/forex-rates/{base}/{target}?date={YYYY-MM-DD}`
+
+**Description:** Returns the exchange rate for a specific currency pair on a particular day.
+
+**Request:**
+```bash
+curl -X GET "http://localhost:8080/api/forex-rates/EUR/USD?date=2026-03-13"
+```
+
+**Response:**
+```json
+{
+  "pair": "EUR/USD",
+  "baseCurrency": "EUR",
+  "targetCurrency": "USD",
+  "date": "2026-03-13",
+  "rate": 1.147600,
+  "description": "1 EUR = 1.147600 USD"
 }
 ```
 
