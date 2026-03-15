@@ -116,10 +116,10 @@ class ExchangeRateServiceTest {
         rates.put("GBP", new BigDecimal("0.8590"));
         ExchangeRatesByDateDto groupedDto = new ExchangeRatesByDateDto(testDate, "EUR", rates);
         
-        when(exchangeRateQueryService.getExchangeRatesFromGrouped("EUR", null, false))
+        when(exchangeRateQueryService.getExchangeRatesFromGrouped("EUR", null))
                 .thenReturn(Arrays.asList(groupedDto));
 
-        List<ExchangeRatesByDateDto> result = exchangeRateService.getExchangeRatesFromGrouped("EUR", null, false);
+        List<ExchangeRatesByDateDto> result = exchangeRateService.getExchangeRatesFromGrouped("EUR", null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getBaseCurrency()).isEqualTo("EUR");
@@ -132,13 +132,29 @@ class ExchangeRateServiceTest {
         rates.put("USD", new BigDecimal("1.1641"));
         ExchangeRatesByDateDto groupedDto = new ExchangeRatesByDateDto(testDate, "EUR", rates);
         
-        when(exchangeRateQueryService.getExchangeRatesFromGrouped("EUR", testDate, false))
+        when(exchangeRateQueryService.getExchangeRatesFromGrouped("EUR", testDate))
                 .thenReturn(Arrays.asList(groupedDto));
 
-        List<ExchangeRatesByDateDto> result = exchangeRateService.getExchangeRatesFromGrouped("EUR", testDate, false);
+        List<ExchangeRatesByDateDto> result = exchangeRateService.getExchangeRatesFromGrouped("EUR", testDate);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getDate()).isEqualTo(testDate);
+    }
+
+    @Test
+    void getExchangeRatesFromGroupedHistory_ReturnsAllDates() {
+        Map<String, BigDecimal> rates = new HashMap<>();
+        rates.put("USD", new BigDecimal("1.1641"));
+        ExchangeRatesByDateDto groupedDto = new ExchangeRatesByDateDto(testDate, "EUR", rates);
+        
+        when(exchangeRateQueryService.getExchangeRatesFromGroupedHistory("EUR"))
+                .thenReturn(Arrays.asList(groupedDto));
+
+        List<ExchangeRatesByDateDto> result = exchangeRateService.getExchangeRatesFromGroupedHistory("EUR");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getBaseCurrency()).isEqualTo("EUR");
+        verify(exchangeRateQueryService).getExchangeRatesFromGroupedHistory("EUR");
     }
 
     @Test
@@ -274,10 +290,10 @@ class ExchangeRateServiceTest {
                 new BigDecimal("1.1600"), "1 EUR = 1.1600 USD"
         );
         
-        when(exchangeRateQueryService.getExchangeRateHistory("EUR", "USD", null))
+        when(exchangeRateQueryService.getExchangeRateHistory("EUR", "USD"))
                 .thenReturn(Arrays.asList(rate1, rate2));
 
-        List<ExchangeRateDto> result = exchangeRateService.getExchangeRateHistory("EUR", "USD", null);
+        List<ExchangeRateDto> result = exchangeRateService.getExchangeRateHistory("EUR", "USD");
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getDate()).isEqualTo(testDate);

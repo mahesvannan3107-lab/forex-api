@@ -32,12 +32,19 @@ public class ExchangeRateService {
     private final IExchangeRateSyncService exchangeRateSyncService;
 
     /**
-     * Get all exchange rates from a base currency grouped by date.
+     * Get exchange rates from a base currency grouped by date.
      * Delegates to ExchangeRateQueryService.
      */
-    public List<ExchangeRatesByDateDto> getExchangeRatesFromGrouped(
-            String base, LocalDate date, Boolean allDates) {
-        return exchangeRateQueryService.getExchangeRatesFromGrouped(base, date, allDates);
+    public List<ExchangeRatesByDateDto> getExchangeRatesFromGrouped(String base, LocalDate date) {
+        return exchangeRateQueryService.getExchangeRatesFromGrouped(base, date);
+    }
+
+    /**
+     * Get all historical exchange rates from a base currency grouped by date.
+     * Delegates to ExchangeRateQueryService.
+     */
+    public List<ExchangeRatesByDateDto> getExchangeRatesFromGroupedHistory(String base) {
+        return exchangeRateQueryService.getExchangeRatesFromGroupedHistory(base);
     }
 
     /**
@@ -60,8 +67,8 @@ public class ExchangeRateService {
      * Get exchange rate history for a currency pair.
      * Delegates to ExchangeRateQueryService.
      */
-    public List<ExchangeRateDto> getExchangeRateHistory(String base, String target, LocalDate date) {
-        return exchangeRateQueryService.getExchangeRateHistory(base, target, date);
+    public List<ExchangeRateDto> getExchangeRateHistory(String base, String target) {
+        return exchangeRateQueryService.getExchangeRateHistory(base, target);
     }
 
     /**

@@ -15,10 +15,15 @@ import java.util.List;
 public interface IExchangeRateQueryService {
 
     /**
-     * Get all exchange rates from a base currency grouped by date.
-     * Supports: latest, specific date, or all dates.
+     * Get exchange rates from a base currency grouped by date.
+     * Returns latest rates if date is null, or rates for a specific date.
      */
-    List<ExchangeRatesByDateDto> getExchangeRatesFromGrouped(String base, LocalDate date, Boolean allDates);
+    List<ExchangeRatesByDateDto> getExchangeRatesFromGrouped(String base, LocalDate date);
+
+    /**
+     * Get all historical exchange rates from a base currency grouped by date.
+     */
+    List<ExchangeRatesByDateDto> getExchangeRatesFromGroupedHistory(String base);
 
     /**
      * Get all exchange rates from a base currency with pagination by date.
@@ -34,7 +39,7 @@ public interface IExchangeRateQueryService {
     /**
      * Get exchange rate history for a currency pair.
      */
-    List<ExchangeRateDto> getExchangeRateHistory(String base, String target, LocalDate date);
+    List<ExchangeRateDto> getExchangeRateHistory(String base, String target);
 
     /**
      * Get exchange rate history for a currency pair with pagination.

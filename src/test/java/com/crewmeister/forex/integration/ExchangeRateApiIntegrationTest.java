@@ -195,13 +195,12 @@ class ExchangeRateApiIntegrationTest {
     }
 
     @Test
-    void getExchangeRate_WithAllDates_ReturnsHistory() throws Exception {
+    void getExchangeRateHistory_ReturnsHistory() throws Exception {
         LocalDate yesterday = testDate.minusDays(1);
         ExchangeRate historicalRate = new ExchangeRate("EUR", "USD", yesterday, new BigDecimal("1.1600"));
         exchangeRateRepository.save(historicalRate);
 
-        mockMvc.perform(get("/api/forex-rates/EUR/USD")
-                        .param("allDates", "true"))
+        mockMvc.perform(get("/api/forex-rates/EUR/USD/history"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].date").value("2026-03-01"))

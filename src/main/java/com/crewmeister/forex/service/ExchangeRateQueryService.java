@@ -35,43 +35,36 @@ public class ExchangeRateQueryService implements IExchangeRateQueryService {
     private final ExchangeRateMapper exchangeRateMapper;
 
     /**
-     * Get all exchange rates from a base currency grouped by date.
-     * Supports: latest, specific date, or all dates.
+     * Get exchange rates from a base currency grouped by date.
+     * Returns latest rates if date is null, or rates for a specific date.
      */
     @Transactional(readOnly = true)
-    public List<ExchangeRatesByDateDto> getExchangeRatesFromGrouped(
-            String base, LocalDate date, Boolean allDates) {
+    @Override
+    public List<ExchangeRatesByDateDto> getExchangeRatesFromGrouped(String base, LocalDate date) {
 
         String upperBase = base.toUpperCase();
         List<ExchangeRate> rates;
 
         if (date != null) {
             rates = exchangeRateRepository.findBySourceCurrencyAndDate(upperBase, date);
-        } else if (allDates) {
-            rates = exchangeRateRepository.findBySourceCurrencyOrderByDateDesc(upperBase);
         } else {
             rates = exchangeRateRepository.findLatestRatesBySourceCurrency(upperBase);
         }
 
-        Map<LocalDate, Map<String, BigDecimal>> groupedByDate = rates.stream()
-                .collect(Collectors.groupingBy(
-                        ExchangeRate::getDate,
-                        LinkedHashMap::new,
-                        Collectors.toMap(
-                                ExchangeRate::getTargetCurrency,
-                                ExchangeRate::getRate,
-                                (r1, r2) -> r1,
-                                LinkedHashMap::new
-                        )
-                ));
+        return groupRatesByDate(rates, upperBase);
+    }
 
-        return groupedByDate.entrySet().stream()
-                .map(entry -> new ExchangeRatesByDateDto(
-                        entry.getKey(),
-                        upperBase,
-                        entry.getValue()
-                ))
-                .collect(Collectors.toList());
+    /**
+     * Get all historical exchange rates from a base currency grouped by date.
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public List<ExchangeRatesByDateDto> getExchangeRatesFromGroupedHistory(String base) {
+
+        String upperBase = base.toUpperCase();
+        List<ExchangeRate> rates = exchangeRateRepository.findBySourceCurrencyOrderByDateDesc(upperBase);
+
+        return groupRatesByDate(rates, upperBase);
     }
 
     /**
@@ -123,7 +116,8 @@ public class ExchangeRateQueryService implements IExchangeRateQueryService {
      * If direct pair (base/target) is not found, tries inverse pair (target/base) and calculates inverse rates.
      */
     @Transactional(readOnly = true)
-    public List<ExchangeRateDto> getExchangeRateHistory(String base, String target, LocalDate date) {
+    @Override
+    public List<ExchangeRateDto> getExchangeRateHistory(String base, String target) {
         log.debug("Fetching exchange rate history from {} to {}", base, target);
 
         String upperBase = base.toUpperCase();
@@ -168,24 +162,8 @@ public class ExchangeRateQueryService implements IExchangeRateQueryService {
         List<LocalDate> dates = datesPage.getContent();
         List<ExchangeRate> rates = exchangeRateRepository.findBySourceCurrencyAndDateIn(upperBase, dates);
         
-        // Group by date
-        Map<LocalDate, Map<String, BigDecimal>> groupedByDate = rates.stream()
-                .collect(Collectors.groupingBy(
-                        ExchangeRate::getDate,
-                        LinkedHashMap::new,
-                        Collectors.toMap(
-                                ExchangeRate::getTargetCurrency,
-                                ExchangeRate::getRate,
-                                (r1, r2) -> r1,
-                                LinkedHashMap::new
-                        )
-                ));
-        
-        // Convert to DTOs maintaining date order
-        List<ExchangeRatesByDateDto> content = dates.stream()
-                .filter(groupedByDate::containsKey)
-                .map(date -> new ExchangeRatesByDateDto(date, upperBase, groupedByDate.get(date)))
-                .collect(Collectors.toList());
+        // Group by date and convert to DTOs
+        List<ExchangeRatesByDateDto> content = groupRatesByDate(rates, upperBase);
         
         return new PageImpl<>(content, pageable, datesPage.getTotalElements());
     }
@@ -215,6 +193,31 @@ public class ExchangeRateQueryService implements IExchangeRateQueryService {
         }
 
         return ratesPage.map(exchangeRateMapper::toDto);
+    }
+
+    /**
+     * Groups exchange rates by date into ExchangeRatesByDateDto objects.
+     */
+    private List<ExchangeRatesByDateDto> groupRatesByDate(List<ExchangeRate> rates, String baseCurrency) {
+        Map<LocalDate, Map<String, BigDecimal>> groupedByDate = rates.stream()
+                .collect(Collectors.groupingBy(
+                        ExchangeRate::getDate,
+                        LinkedHashMap::new,
+                        Collectors.toMap(
+                                ExchangeRate::getTargetCurrency,
+                                ExchangeRate::getRate,
+                                (r1, r2) -> r1,
+                                LinkedHashMap::new
+                        )
+                ));
+
+        return groupedByDate.entrySet().stream()
+                .map(entry -> new ExchangeRatesByDateDto(
+                        entry.getKey(),
+                        baseCurrency,
+                        entry.getValue()
+                ))
+                .collect(Collectors.toList());
     }
 
     /**
