@@ -34,15 +34,15 @@ public class CurrencyConversionService implements ICurrencyConversionService {
         validateConversionParams(from, to, amount, date);
 
         ExchangeRateDto rateDto = exchangeRateQueryService.getExchangeRate(from, to, date);
-        BigDecimal convertedAmount = amount.multiply(rateDto.getRate()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal convertedAmount = amount.multiply(rateDto.rate()).setScale(2, RoundingMode.HALF_UP);
 
         return new ConversionDto(
-                rateDto.getBaseCurrency(),
+                rateDto.baseCurrency(),
                 amount,
-                rateDto.getTargetCurrency(),
+                rateDto.targetCurrency(),
                 convertedAmount,
-                rateDto.getDate(),
-                rateDto.getRate()
+                rateDto.date(),
+                rateDto.rate()
         );
     }
 

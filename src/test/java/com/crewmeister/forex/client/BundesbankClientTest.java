@@ -14,7 +14,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.crewmeister.forex.exception.ExternalApiException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -85,13 +88,13 @@ class BundesbankClientTest {
     }
 
     @Test
-    void fetchAllExchangeRates_ExceptionThrown_ReturnsEmptyList() {
+    void fetchAllExchangeRates_ExceptionThrown_ThrowsExternalApiException() {
         when(restTemplate.getForObject(anyString(), eq(String.class)))
                 .thenThrow(new RuntimeException("API Error"));
 
-        List<ExchangeRateDataDto> result = bundesbankClient.fetchAllExchangeRates();
-
-        assertThat(result).isEmpty();
+        assertThatThrownBy(() -> bundesbankClient.fetchAllExchangeRates())
+                .isInstanceOf(ExternalApiException.class)
+                .hasMessageContaining("Failed to fetch exchange rates");
     }
 
     @Test
@@ -121,13 +124,13 @@ class BundesbankClientTest {
     }
 
     @Test
-    void fetchLatestExchangeRates_ExceptionThrown_ReturnsEmptyList() {
+    void fetchLatestExchangeRates_ExceptionThrown_ThrowsExternalApiException() {
         when(restTemplate.getForObject(anyString(), eq(String.class)))
                 .thenThrow(new RuntimeException("Network error"));
 
-        List<ExchangeRateDataDto> result = bundesbankClient.fetchLatestExchangeRates();
-
-        assertThat(result).isEmpty();
+        assertThatThrownBy(() -> bundesbankClient.fetchLatestExchangeRates())
+                .isInstanceOf(ExternalApiException.class)
+                .hasMessageContaining("Failed to fetch latest exchange rates");
     }
 
     @Test

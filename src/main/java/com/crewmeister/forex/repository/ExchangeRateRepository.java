@@ -38,11 +38,9 @@ public interface ExchangeRateRepository extends JpaRepository<ExchangeRate, Long
     Page<ExchangeRate> findBySourceCurrencyAndTargetCurrencyOrderByDateDesc(
             String sourceCurrency, String targetCurrency, Pageable pageable);
 
-    // Find latest rate by source and target (first result ordered by date desc)
-    default Optional<ExchangeRate> findLatestRateBySourceAndTarget(String sourceCurrency, String targetCurrency) {
-        List<ExchangeRate> rates = findBySourceCurrencyAndTargetCurrencyOrderByDateDesc(sourceCurrency, targetCurrency);
-        return rates.isEmpty() ? Optional.empty() : Optional.of(rates.get(0));
-    }
+    // Find latest rate by source and target (single row, ordered by date desc)
+    @Query("SELECT e FROM ExchangeRate e WHERE e.sourceCurrency = :src AND e.targetCurrency = :tgt ORDER BY e.date DESC LIMIT 1")
+    Optional<ExchangeRate> findLatestRateBySourceAndTarget(@Param("src") String sourceCurrency, @Param("tgt") String targetCurrency);
 
     // Find by source, target, and date
     Optional<ExchangeRate> findBySourceCurrencyAndTargetCurrencyAndDate(

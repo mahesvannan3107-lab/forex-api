@@ -69,9 +69,9 @@ public class ExchangeRateSyncService implements IExchangeRateSyncService {
         for (ExchangeRateDataDto dto : latestRates) {
             ExchangeRate existingRate = exchangeRateRepository
                     .findBySourceCurrencyAndTargetCurrencyAndDate(
-                            dto.getSourceCurrency(),
-                            dto.getTargetCurrency(),
-                            dto.getDate())
+                            dto.sourceCurrency(),
+                            dto.targetCurrency(),
+                            dto.date())
                     .orElse(null);
 
             if (existingRate != null) {

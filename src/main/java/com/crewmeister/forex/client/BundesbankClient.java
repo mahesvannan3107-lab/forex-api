@@ -1,6 +1,7 @@
 package com.crewmeister.forex.client;
 
 import com.crewmeister.forex.config.BundesbankApiConfig;
+import com.crewmeister.forex.exception.ExternalApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,15 @@ import java.util.*;
 public class BundesbankClient {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    // CSV column indices for Bundesbank SDMX CSV format
+    private static final int COL_FREQUENCY = 1;
+    private static final int COL_TARGET_CURRENCY = 2;
+    private static final int COL_SOURCE_CURRENCY = 3;
+    private static final int COL_TIME_PERIOD = 7;
+    private static final int COL_OBS_VALUE = 8;
+    private static final int COL_BBK_DIFF = 18;
+    private static final int MIN_COLUMNS = 9;
 
     private final BundesbankApiConfig apiConfig;
     private final RestTemplate restTemplate;
@@ -49,8 +59,7 @@ public class BundesbankClient {
             return result;
 
         } catch (Exception e) {
-            log.error("Error fetching exchange rates: {}", e.getMessage(), e);
-            return Collections.emptyList();
+            throw new ExternalApiException("Failed to fetch exchange rates from Bundesbank API", e);
         }
     }
 
@@ -82,28 +91,14 @@ public class BundesbankClient {
 
                 // Split by comma but respect quoted fields
                 String[] parts = splitCsvLine(line);
-                if (parts.length >= 9) {
+                if (parts.length >= MIN_COLUMNS) {
                     try {
-                        // Column 1: Frequency (D = Daily)
-                        String frequency = parts[1].trim();
-
-                        // Column 2: Currency code (e.g., AUD, USD)
-                        String targetCurrency = parts[2].trim();
-
-                        // Column 3: Partner currency (EUR)
-                        String sourceCurrency = parts[3].trim();
-
-                        // Column 7: Date (TIME_PERIOD)
-                        String dateStr = parts[7].trim();
-
-                        // Column 8: Rate (OBS_VALUE)
-                        String valueStr = parts[8].trim();
-
-                        // Column 18: Diff percent (BBK_DIFF) - if available
-                        String diffStr = parts.length > 18 ? parts[18].trim() : "";
-
-                        // Last column: Observation status (OBS_STATUS)
-                        String obsStatus = parts.length > 19 ? parts[parts.length - 1].trim() : "";
+                        String frequency = parts[COL_FREQUENCY].trim();
+                        String targetCurrency = parts[COL_TARGET_CURRENCY].trim();
+                        String sourceCurrency = parts[COL_SOURCE_CURRENCY].trim();
+                        String dateStr = parts[COL_TIME_PERIOD].trim();
+                        String valueStr = parts[COL_OBS_VALUE].trim();
+                        String diffStr = parts.length > COL_BBK_DIFF ? parts[COL_BBK_DIFF].trim() : "";
 
                         // Skip rows with no observation (weekends/holidays marked with ".")
                         if (valueStr.isEmpty() || ".".equals(valueStr)) {
@@ -168,8 +163,7 @@ public class BundesbankClient {
             return result;
 
         } catch (Exception e) {
-            log.error("Error fetching latest exchange rates: {}", e.getMessage(), e);
-            return Collections.emptyList();
+            throw new ExternalApiException("Failed to fetch latest exchange rates from Bundesbank API", e);
         }
     }
 

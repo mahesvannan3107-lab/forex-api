@@ -2,19 +2,24 @@ package com.crewmeister.forex.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "exchange_rates",
         uniqueConstraints = @UniqueConstraint(columnNames = {"source_currency", "target_currency", "date"}))
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"createdAt", "updatedAt", "createdBy", "updatedBy"})
 public class ExchangeRate {
 
     @Id
@@ -67,6 +72,21 @@ public class ExchangeRate {
         this.targetCurrency = targetCurrency;
         this.date = date;
         this.rate = rate;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ExchangeRate that = (ExchangeRate) o;
+        return Objects.equals(sourceCurrency, that.sourceCurrency)
+                && Objects.equals(targetCurrency, that.targetCurrency)
+                && Objects.equals(date, that.date);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(sourceCurrency, targetCurrency, date);
     }
 }
 

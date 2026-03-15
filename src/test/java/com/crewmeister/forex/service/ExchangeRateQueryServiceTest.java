@@ -82,7 +82,7 @@ class ExchangeRateQueryServiceTest {
         assertThat(result.getNumber()).isEqualTo(0);
         assertThat(result.isFirst()).isTrue();
         assertThat(result.isLast()).isFalse();
-        assertThat(result.getContent().get(0).getBaseCurrency()).isEqualTo("EUR");
+        assertThat(result.getContent().get(0).baseCurrency()).isEqualTo("EUR");
 
         verify(exchangeRateRepository).findDistinctDatesBySourceCurrency("EUR", pageable);
     }

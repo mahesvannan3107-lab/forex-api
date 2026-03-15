@@ -40,12 +40,12 @@ public class ExchangeRateMapper {
      */
     public ExchangeRate toEntity(ExchangeRateDataDto dto, String createdBy) {
         ExchangeRate exchangeRate = new ExchangeRate();
-        exchangeRate.setSourceCurrency(dto.getSourceCurrency());
-        exchangeRate.setTargetCurrency(dto.getTargetCurrency());
-        exchangeRate.setDate(dto.getDate());
-        exchangeRate.setRate(dto.getRate());
-        exchangeRate.setFrequency(dto.getFrequency());
-        exchangeRate.setDiffPercent(dto.getDiffPercent());
+        exchangeRate.setSourceCurrency(dto.sourceCurrency());
+        exchangeRate.setTargetCurrency(dto.targetCurrency());
+        exchangeRate.setDate(dto.date());
+        exchangeRate.setRate(dto.rate());
+        exchangeRate.setFrequency(dto.frequency());
+        exchangeRate.setDiffPercent(dto.diffPercent());
         exchangeRate.setCreatedBy(createdBy);
         return exchangeRate;
     }
@@ -54,8 +54,8 @@ public class ExchangeRateMapper {
      * Updates an existing ExchangeRate entity with new data.
      */
     public void updateEntity(ExchangeRate existing, ExchangeRateDataDto dto, String updatedBy) {
-        existing.setRate(dto.getRate());
-        existing.setDiffPercent(dto.getDiffPercent());
+        existing.setRate(dto.rate());
+        existing.setDiffPercent(dto.diffPercent());
         existing.setUpdatedBy(updatedBy);
     }
 }
