@@ -134,9 +134,9 @@ The development followed a **human-driven, AI-assisted** approach where:
 > - Add JaCoCo plugin for code coverage reporting"
 
 **AI Response:**
-- Created `ExchangeRateServiceTest` (18 tests)
+- Created `ExchangeRateQueryServiceTest` (8 tests)
 - Created `CurrencyServiceTest` (3 tests)
-- Created `ExchangeRateControllerTest` (13 tests)
+- Created `ExchangeRateControllerTest` (21 tests)
 - Created `CurrencyControllerTest` (4 tests)
 - Created `BundesbankClientTest` (10 tests)
 - Created `ExchangeRateApiIntegrationTest` (13 tests)
@@ -145,7 +145,7 @@ The development followed a **human-driven, AI-assisted** approach where:
 - Added JaCoCo plugin to pom.xml
 
 **My Decision:** ✅ **Accepted**
-- Comprehensive test coverage (78 tests total)
+- Comprehensive test coverage (76 tests total)
 - All layers properly tested as I requested
 
 ---
@@ -268,13 +268,162 @@ The development followed a **human-driven, AI-assisted** approach where:
 - Added ASCII architecture and data flow diagrams
 - Included curl examples with realistic JSON responses
 - Created technology stack table with exact versions
-- Documented test coverage (78 tests across 9 test classes)
+- Documented test coverage (76 tests across 9 test classes)
 - Added project structure tree
 - Organized sections in logical order
 
 **My Decision:** ✅ **Accepted**
 - All my requirements were addressed
 - Documentation is comprehensive and well-organized
+
+---
+
+### 11. Convert DTOs to Immutable Java Records
+
+**My Prompt:**
+> "Convert CurrencyDto to an immutable Java record instead of using Lombok @Data."
+
+**AI Response:**
+- Converted `CurrencyDto` from mutable class with `@Data` to immutable Java record
+- Updated `CurrencyServiceTest` to use record accessor style (`code()` instead of `getCode()`)
+
+**My Decision:** ✅ **Accepted**
+- Records are thread-safe and more concise
+- Better expresses immutable data transfer objects
+
+**Follow-up:**
+> "Apply the same pattern to all other DTOs: ExchangeRateDto, ConversionDto, ExchangeRatesByDateDto, ExchangeRateDataDto"
+
+**AI Response:**
+- Converted all remaining DTOs to Java records
+
+**My Decision:** ✅ **Accepted**
+- Consistent DTO pattern across the codebase
+
+---
+
+### 12. Fix JPA Entity equals/hashCode Issues
+
+**My Prompt:**
+> "The Currency and ExchangeRate entities use Lombok @Data which generates equals/hashCode based on all fields including ID. This can cause issues with JPA. Fix this by using manual equals/hashCode based on business keys."
+
+**AI Response:**
+- Replaced `@Data` with `@Getter`, `@Setter`, `@ToString` on `Currency` and `ExchangeRate` entities
+- Added manual `equals()` and `hashCode()` methods:
+  - `Currency`: based on `code` (business key)
+  - `ExchangeRate`: based on `sourceCurrency`, `targetCurrency`, `date` (composite business key)
+
+**My Decision:** ✅ **Accepted**
+- Avoids JPA issues with entity equality based on mutable ID
+- Follows JPA best practices for entity design
+
+---
+
+### 13. Extract Service Interfaces
+
+**My Prompt:**
+> "Extract interfaces for all service classes to follow Dependency Inversion Principle and improve testability."
+
+**AI Response:**
+- Created `ICurrencyService` interface with `getAllCurrencies()` method
+- Updated `CurrencyService` to implement the interface
+- Updated `CurrencyController` and `CurrencyControllerTest` to inject the interface instead of concrete class
+
+**My Decision:** ✅ **Accepted**
+- Controllers depend on abstractions, not concrete implementations
+- Easier to mock in tests
+
+**Follow-up:**
+> "Apply the same pattern to ExchangeRateService and CurrencyConversionService"
+
+**AI Response:**
+- Created `IExchangeRateQueryService`, `ICurrencyConversionService`, `IExchangeRateSyncService`
+- Updated controllers and tests to inject interfaces
+
+**My Decision:** ✅ **Accepted**
+- Consistent interface-based design across all services
+
+---
+
+### 14. Implement CQRS-lite Pattern
+
+**My Prompt:**
+> "Split ExchangeRateService into separate services for read and write operations to follow CQRS pattern."
+
+**AI Response:**
+- Created `ExchangeRateQueryService` for all read operations (queries)
+- Created `ExchangeRateSyncService` for all write operations (data synchronization)
+- Updated controllers to inject the appropriate service based on operation type
+
+**My Decision:** ✅ **Accepted**
+- Clearer separation of concerns
+- Read and write operations can scale independently if needed
+
+---
+
+### 15. Extract Mapper Components
+
+**My Prompt:**
+> "Create dedicated mapper components for entity-to-DTO conversions instead of inline mapping logic."
+
+**AI Response:**
+- Created `CurrencyMapper` as `@Component` with `toDto()` method
+- Created `ExchangeRateMapper` as `@Component` with `toDto()`, `toEntity()`, and `updateEntity()` methods
+- Updated services to inject and use mappers
+- Updated tests to use `@Spy` for mappers so real mapping logic is tested
+
+**My Decision:** ✅ **Accepted**
+- Centralized mapping logic
+- Consistent with Spring's component-based architecture
+- Easier to test and maintain
+
+---
+
+### 16. Add API Resilience with Spring Retry
+
+**My Prompt:**
+> "Add retry logic to external API calls in BundesbankClient to handle transient failures like network glitches."
+
+**AI Response:**
+- Added `spring-retry` and `spring-aspects` dependencies to `pom.xml`
+- Added `@EnableRetry` to `ForexApplication.java`
+- Added `@Retryable` annotations to `fetchAllExchangeRates()` and `fetchLatestExchangeRates()`
+- Configured: retry on `RestClientException`, max 3 attempts, exponential backoff (1s → 2s → 4s)
+
+**Follow-up Issue:**
+> "The @Retryable won't trigger because the try-catch block catches RestClientException before Spring Retry can intercept it."
+
+**AI Response:**
+- Removed `try-catch` wrapping around `RestClientException`
+- Added `@Recover` method as final fallback that throws `ExternalApiException`
+- Updated unit tests to expect `RestClientException` propagation (unit tests don't have Spring AOP proxy)
+- Removed unused `RoundingMode` import
+
+**My Decision:** ✅ **Accepted**
+- Retry mechanism now works correctly
+- Transient failures are handled gracefully with exponential backoff
+- Final failure returns HTTP 503 Service Unavailable
+
+---
+
+### 17. Simplify README Documentation
+
+**My Prompt:**
+> "Simplify README: show only 4 core endpoints with examples, list all other endpoints in a table without examples. Highlight that we load last 100 records per currency at startup."
+
+**AI Response:**
+- Added note about loading 100 records per currency at startup
+- Created "Available Endpoints" table listing all 10 endpoints
+- Kept detailed examples for only 4 core use cases:
+  1. Get all currencies
+  2. Get all EUR-FX rates (all dates)
+  3. Get EUR-FX rate at particular day
+  4. Convert currency amount
+- Removed verbose examples for history/pagination endpoints
+
+**My Decision:** ✅ **Accepted**
+- README is now cleaner and focused on core use cases
+- All endpoints still documented in the table
 
 ---
 
@@ -309,6 +458,7 @@ The development followed a **human-driven, AI-assisted** approach where:
 | **Testing** | Wrote test cases | Directed test requirements, reviewed results |
 | **Debugging** | Proposed solutions | Provided error messages, decided on fixes |
 | **Configuration** | Implemented property injection | Decided on externalization approach |
+| **Code Quality** | Implemented refactorings | Identified improvement areas through manual review |
 | **Documentation** | Generated README content | Specified sections and requirements |
 
 ---
@@ -318,7 +468,8 @@ The development followed a **human-driven, AI-assisted** approach where:
 1. **Iterative Debugging:** Some issues required multiple attempts to resolve (e.g., test isolation)
 2. **Version Compatibility:** AI needed to research current compatibility requirements for newer Spring Boot versions
 3. **Human Oversight:** My design decisions and stage-by-stage guidance were essential for a coherent solution
-4. **AI as Implementation Partner:** AI excels at implementing well-specified requirements but benefits from human architectural guidance
+4. **Code Review:** Manual code review identified areas for improvement (DTOs, entities, service interfaces, CQRS, mappers)
+5. **AI as Implementation Partner:** AI excels at implementing well-specified requirements but benefits from human architectural guidance
 
 ---
 
@@ -329,6 +480,7 @@ The AI tool was used as an **implementation assistant** while I maintained contr
 - Architecture choices
 - Validation rules
 - Configuration approaches
+- Code quality improvements (identified through manual review)
 - Final approval of all changes
 
 This collaborative approach resulted in a well-structured, tested, and documented application that meets all requirements.
