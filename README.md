@@ -1,6 +1,6 @@
 # Foreign Exchange Rate API
 
-A Spring Boot REST API service that fetches and serves foreign exchange rates from the Bundesbank API. The service provides endpoints for retrieving currencies, exchange rates, and currency conversion.
+A Spring Boot REST API service that fetches and serves foreign exchange rates from the Bundesbank API. The service provides endpoints for retrieving currencies, exchange rates, historical data with pagination, and currency conversion.
 
 ---
 
@@ -39,36 +39,38 @@ A Spring Boot REST API service that fetches and serves foreign exchange rates fr
 │                                       │                                      │
 │                                       ▼                                      │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                           SERVICES                                    │  │
-│  │  ┌─────────────────────────┐    ┌──────────────────────────────────┐  │  │
-│  │  │    CurrencyService      │    │    ExchangeRateService           │  │  │
-│  │  │    - getAllCurrencies   │    │    - getExchangeRates            │  │  │
-│  │  │                         │    │    - getExchangeRate             │  │  │
-│  │  │                         │    │    - convertCurrency             │  │  │
-│  │  │                         │    │    - syncExchangeRates           │  │  │
-│  │  └─────────────────────────┘    └──────────────────────────────────┘  │  │
+│  │                    SERVICE INTERFACES + IMPLEMENTATIONS                │  │
+│  │  ┌──────────────────┐  ┌───────────────────┐  ┌───────────────────┐  │  │
+│  │  │ ICurrencyService │  │ IExchangeRate     │  │ ICurrencyConver-  │  │  │
+│  │  │ CurrencyService  │  │ QueryService      │  │ sionService       │  │  │
+│  │  │                  │  │ ExchangeRateQuery │  │ CurrencyConver-   │  │  │
+│  │  │                  │  │ Service           │  │ sionService       │  │  │
+│  │  └──────────────────┘  └───────────────────┘  └───────────────────┘  │  │
+│  │                         ┌───────────────────┐                         │  │
+│  │                         │ IExchangeRateSync │                         │  │
+│  │                         │ Service           │                         │  │
+│  │                         │ ExchangeRateSync  │                         │  │
+│  │                         │ Service           │                         │  │
+│  │                         └───────────────────┘                         │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
-│                                       │                                      │
-│                    ┌──────────────────┴──────────────────┐                   │
-│                    ▼                                     ▼                   │
-│  ┌─────────────────────────────────┐    ┌─────────────────────────────────┐ │
-│  │        REPOSITORIES             │    │      BUNDESBANK CLIENT          │ │
-│  │  ┌───────────────────────────┐  │    │  ┌───────────────────────────┐  │ │
-│  │  │   CurrencyRepository      │  │    │  │   BundesbankClient        │  │ │
-│  │  │   ExchangeRateRepository  │  │    │  │   - fetchExchangeRates    │  │ │
-│  │  └───────────────────────────┘  │    │  │   - fetchLatestRates      │  │ │
-│  └─────────────────────────────────┘    │  └───────────────────────────┘  │ │
-│                    │                     └─────────────────────────────────┘ │
-│                    ▼                                     │                   │
-│  ┌─────────────────────────────────┐                     │                   │
-│  │         H2 DATABASE             │                     │                   │
-│  │  ┌───────────────────────────┐  │                     │                   │
-│  │  │   currencies              │  │                     │                   │
-│  │  │   exchange_rates          │  │                     │                   │
-│  │  └───────────────────────────┘  │                     │                   │
-│  └─────────────────────────────────┘                     │                   │
-│                                                          │                   │
-│  ┌───────────────────────────────────────────────────────┴────────────────┐ │
+│              │                     │                      │                  │
+│              ▼                     ▼                      ▼                  │
+│  ┌────────────────────┐  ┌────────────────┐  ┌─────────────────────────┐   │
+│  │    MAPPERS          │  │  REPOSITORIES  │  │   BUNDESBANK CLIENT     │   │
+│  │  CurrencyMapper     │  │  Currency-     │  │   @Retryable            │   │
+│  │  ExchangeRateMapper │  │  Repository    │  │   fetchAllExchangeRates │   │
+│  │                     │  │  ExchangeRate- │  │   fetchLatestRates      │   │
+│  │                     │  │  Repository    │  │   + @Recover fallback   │   │
+│  └────────────────────┘  └────────────────┘  └─────────────────────────┘   │
+│                                │                          │                  │
+│                                ▼                          │                  │
+│                       ┌────────────────┐                  │                  │
+│                       │  H2 DATABASE   │                  │                  │
+│                       │  currencies    │                  │                  │
+│                       │  exchange_rates│                  │                  │
+│                       └────────────────┘                  │                  │
+│                                                           │                  │
+│  ┌────────────────────────────────────────────────────────┴───────────────┐ │
 │  │                    SCHEDULER (Daily at 6 AM)                           │ │
 │  │                    ScheduledExchangeRateUpdater                        │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
@@ -86,24 +88,53 @@ A Spring Boot REST API service that fetches and serves foreign exchange rates fr
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
 │   Startup    │────▶│  DataLoader  │────▶│ Bundesbank   │────▶│   Database   │
-│              │     │              │     │    Client    │     │   (H2)       │
+│              │     │              │     │ Client       │     │   (H2)       │
+│              │     │              │     │ (@Retryable) │     │              │
 └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
                                                                       │
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐            │
 │   Client     │────▶│  Controller  │────▶│   Service    │◀───────────┘
-│   Request    │     │              │     │              │
+│   Request    │     │  (Validated) │     │  (Interface) │
 └──────────────┘     └──────────────┘     └──────────────┘
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │   Response   │
-                     │   (JSON)     │
-                     └──────────────┘
+                            │                     │
+                            ▼                     ▼
+                     ┌──────────────┐     ┌──────────────┐
+                     │   Response   │     │   Mapper     │
+                     │   (JSON)     │     │   (DTO↔Ent)  │
+                     └──────────────┘     └──────────────┘
 ```
+
+### Key Design Decisions
+
+- **CQRS-lite**: Read operations (`ExchangeRateQueryService`) separated from write operations (`ExchangeRateSyncService`)
+- **Interface Segregation**: All services expose interfaces (`ICurrencyService`, `IExchangeRateQueryService`, etc.)
+- **Immutable DTOs**: All DTOs are Java records for thread-safety and clarity
+- **Entity Best Practices**: Manual `equals`/`hashCode` based on business keys (not `@Data`)
+- **Resilience**: `@Retryable` with exponential backoff on external API calls, `@Recover` fallback
+- **Inverse Rate Fallback**: If EUR/USD is not found, calculates from USD/EUR automatically
 
 ---
 
 ## API Endpoints & Examples
+
+> **Note:** On application startup, the system automatically loads the **last 100 available exchange rate records** for each currency from the Bundesbank API.
+
+### Available Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/currencies` | Get all available currencies |
+| `GET /api/forex-rates/{base}` | Get all EUR-FX exchange rates (all dates) |
+| `GET /api/forex-rates/{base}?date={YYYY-MM-DD}` | Get EUR-FX exchange rate at a particular day |
+| `GET /api/forex-rates/{base}/history` | Get exchange rate history for base currency |
+| `GET /api/forex-rates/{base}/history/paginated` | Get paginated exchange rate history |
+| `GET /api/forex-rates/{base}/{target}` | Get specific currency pair rate (latest) |
+| `GET /api/forex-rates/{base}/{target}?date={YYYY-MM-DD}` | Get specific currency pair rate at a date |
+| `GET /api/forex-rates/{base}/{target}/history` | Get currency pair history |
+| `GET /api/forex-rates/{base}/{target}/history/paginated` | Get paginated currency pair history |
+| `GET /api/forex-rates/convert` | Convert currency amount |
+
+---
 
 ### 1. Get All Available Currencies
 
@@ -121,39 +152,30 @@ curl -X GET http://localhost:8080/api/currencies
 [
   {
     "code": "EUR",
-    "name": "Euro",
-    "symbol": "€",
-    "countryCode": "EU",
-    "countryName": "European Union"
+    "name": "Euro"
   },
   {
     "code": "USD",
-    "name": "United States Dollar",
-    "symbol": "$",
-    "countryCode": "USA",
-    "countryName": "United States"
+    "name": "United States Dollar"
   },
   {
     "code": "GBP",
-    "name": "British Pound Sterling",
-    "symbol": "£",
-    "countryCode": "GBR",
-    "countryName": "United Kingdom"
+    "name": "British Pound Sterling"
   }
 ]
 ```
 
 ---
 
-### 2. Get All EUR-FX Exchange Rates (All Dates)
+### 2. Get All EUR-FX Exchange Rates (All Available Dates)
 
-**Endpoint:** `GET /api/forex-rates/{base}?allDates=true`
+**Endpoint:** `GET /api/forex-rates/{base}`
 
-**Description:** Returns all EUR-FX exchange rates at all available dates as a collection.
+**Description:** Returns all EUR-FX exchange rates at all available dates as a collection, grouped by date.
 
 **Request:**
 ```bash
-curl -X GET "http://localhost:8080/api/forex-rates/EUR?allDates=true"
+curl -X GET http://localhost:8080/api/forex-rates/EUR
 ```
 
 **Response:**
@@ -162,35 +184,20 @@ curl -X GET "http://localhost:8080/api/forex-rates/EUR?allDates=true"
   {
     "date": "2026-03-14",
     "baseCurrency": "EUR",
-    "rates": [
-      {
-        "pair": "EUR/USD",
-        "baseCurrency": "EUR",
-        "targetCurrency": "USD",
-        "rate": 1.0876,
-        "date": "2026-03-14"
-      },
-      {
-        "pair": "EUR/GBP",
-        "baseCurrency": "EUR",
-        "targetCurrency": "GBP",
-        "rate": 0.8392,
-        "date": "2026-03-14"
-      }
-    ]
+    "rates": {
+      "USD": 1.0876,
+      "GBP": 0.8392,
+      "JPY": 161.45
+    }
   },
   {
     "date": "2026-03-13",
     "baseCurrency": "EUR",
-    "rates": [
-      {
-        "pair": "EUR/USD",
-        "baseCurrency": "EUR",
-        "targetCurrency": "USD",
-        "rate": 1.0912,
-        "date": "2026-03-13"
-      }
-    ]
+    "rates": {
+      "USD": 1.0912,
+      "GBP": 0.8401,
+      "JPY": 162.10
+    }
   }
 ]
 ```
@@ -214,53 +221,18 @@ curl -X GET "http://localhost:8080/api/forex-rates/EUR?date=2026-03-01"
   {
     "date": "2026-03-01",
     "baseCurrency": "EUR",
-    "rates": [
-      {
-        "pair": "EUR/USD",
-        "baseCurrency": "EUR",
-        "targetCurrency": "USD",
-        "rate": 1.0823,
-        "date": "2026-03-01"
-      },
-      {
-        "pair": "EUR/GBP",
-        "baseCurrency": "EUR",
-        "targetCurrency": "GBP",
-        "rate": 0.8356,
-        "date": "2026-03-01"
-      }
-    ]
+    "rates": {
+      "USD": 1.0823,
+      "GBP": 0.8356,
+      "JPY": 130.50
+    }
   }
 ]
 ```
 
 ---
 
-### 4. Get Specific Currency Pair Exchange Rate
-
-**Endpoint:** `GET /api/forex-rates/{base}/{target}?date={YYYY-MM-DD}`
-
-**Description:** Returns the exchange rate for a specific currency pair on a particular day.
-
-**Request:**
-```bash
-curl -X GET "http://localhost:8080/api/forex-rates/EUR/USD?date=2026-03-01"
-```
-
-**Response:**
-```json
-{
-  "pair": "EUR/USD",
-  "baseCurrency": "EUR",
-  "targetCurrency": "USD",
-  "rate": 1.0823,
-  "date": "2026-03-01"
-}
-```
-
----
-
-### 5. Convert Currency Amount
+### 4. Get Foreign Exchange Amount Converted to EUR
 
 **Endpoint:** `GET /api/forex-rates/convert?from={currency}&to={currency}&amount={value}&date={YYYY-MM-DD}`
 
@@ -274,12 +246,12 @@ curl -X GET "http://localhost:8080/api/forex-rates/convert?from=USD&to=EUR&amoun
 **Response:**
 ```json
 {
-  "sourceCurrency": "USD",
-  "sourceAmount": 100.00,
-  "targetCurrency": "EUR",
-  "convertedAmount": 92.40,
-  "exchangeRate": 0.9240,
-  "date": "2026-03-01"
+  "fromCurrency": "USD",
+  "fromAmount": 100.00,
+  "toCurrency": "EUR",
+  "toAmount": 92.40,
+  "date": "2026-03-01",
+  "exchangeRate": 0.9240
 }
 ```
 
@@ -303,7 +275,17 @@ curl -X GET "http://localhost:8080/api/forex-rates/convert?from=USD&to=EUR&amoun
   "timestamp": "2026-03-14T12:00:00",
   "status": 404,
   "error": "Not Found",
-  "message": "Exchange rate not found for EUR/XXX"
+  "message": "Exchange rate not found for EUR to XXX"
+}
+```
+
+**503 Service Unavailable - External API Failure:**
+```json
+{
+  "timestamp": "2026-03-14T12:00:00",
+  "status": 503,
+  "error": "Service Unavailable",
+  "message": "Failed to fetch exchange rates from Bundesbank API after retries"
 }
 ```
 
@@ -319,6 +301,7 @@ curl -X GET "http://localhost:8080/api/forex-rates/convert?from=USD&to=EUR&amoun
 | **Database** | H2 (In-Memory) | 2.3.232 |
 | **ORM** | Spring Data JPA / Hibernate | 6.6.x |
 | **API Documentation** | SpringDoc OpenAPI (Swagger) | 2.8.9 |
+| **Resilience** | Spring Retry | (managed by Spring Boot) |
 | **Code Coverage** | JaCoCo | 0.8.11 |
 | **Utility** | Lombok | (managed by Spring Boot) |
 | **Testing** | JUnit 5, Mockito, MockMvc | (managed by Spring Boot) |
@@ -397,7 +380,7 @@ http://localhost:8080/v3/api-docs
 ### Swagger UI Screenshot
 
 The Swagger UI provides:
-- **Forex Rates** section with 4 endpoints
+- **Forex Rates** section with 7 endpoints
 - **Currencies** section with 1 endpoint
 - Expandable endpoint details with "Try it out" functionality
 
@@ -422,16 +405,16 @@ target/site/jacoco/index.html
 
 | Test Type | Test Class | Tests |
 |-----------|------------|-------|
-| **Unit Tests** | `ExchangeRateServiceTest` | 18 |
-| **Unit Tests** | `CurrencyServiceTest` | 3 |
-| **Unit Tests** | `ExchangeRateControllerTest` | 13 |
-| **Unit Tests** | `CurrencyControllerTest` | 4 |
 | **Unit Tests** | `BundesbankClientTest` | 10 |
+| **Unit Tests** | `ExchangeRateQueryServiceTest` | 8 |
+| **Unit Tests** | `CurrencyServiceTest` | 3 |
+| **Unit Tests** | `ExchangeRateControllerTest` | 21 |
+| **Unit Tests** | `CurrencyControllerTest` | 4 |
 | **Integration Tests** | `ExchangeRateApiIntegrationTest` | 13 |
-| **Integration Tests** | `SchedulerIntegrationTest` | 4 |
 | **Integration Tests** | `RepositoryIntegrationTest` | 12 |
+| **Integration Tests** | `SchedulerIntegrationTest` | 4 |
 | **Context Test** | `ForexApplicationTests` | 1 |
-| **Total** | | **78 Tests** |
+| **Total** | | **76 Tests** |
 
 ### Coverage Metrics
 
@@ -451,6 +434,7 @@ Configuration is managed through Spring profiles:
 |------|---------|
 | `application.properties` | Common/default configuration |
 | `application-local.properties` | Local development environment |
+| `application-prod.properties` | Production environment |
 
 ### Key Configuration Properties
 
@@ -489,57 +473,74 @@ forex/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/crewmeister/forex/
-│   │   │   ├── ForexApplication.java          # Main application entry
+│   │   │   ├── ForexApplication.java              # Main entry (@EnableScheduling, @EnableRetry)
 │   │   │   ├── client/
-│   │   │   │   └── BundesbankClient.java      # External API client
+│   │   │   │   └── BundesbankClient.java          # External API client (@Retryable)
 │   │   │   ├── config/
-│   │   │   │   ├── BundesbankApiConfig.java   # API configuration
-│   │   │   │   ├── DataLoader.java            # Startup data loader
-│   │   │   │   ├── OpenApiConfig.java         # Swagger configuration
-│   │   │   │   └── WebMvcConfig.java          # Web MVC configuration
+│   │   │   │   ├── BundesbankApiConfig.java       # API configuration properties
+│   │   │   │   ├── DataLoader.java                # Startup data loader
+│   │   │   │   ├── OpenApiConfig.java             # Swagger/OpenAPI configuration
+│   │   │   │   ├── RestTemplateConfig.java        # HTTP client with timeouts
+│   │   │   │   └── WebMvcConfig.java              # Interceptor registration
 │   │   │   ├── controller/
-│   │   │   │   ├── CurrencyController.java    # Currency endpoints
-│   │   │   │   └── ExchangeRateController.java # Exchange rate endpoints
+│   │   │   │   ├── CurrencyController.java        # Currency endpoints (1 endpoint)
+│   │   │   │   └── ExchangeRateController.java    # Exchange rate endpoints (7 endpoints)
 │   │   │   ├── dto/
-│   │   │   │   ├── ConversionDto.java         # Conversion response
-│   │   │   │   ├── CurrencyDto.java           # Currency response
-│   │   │   │   ├── ExchangeRateDto.java       # Exchange rate response
-│   │   │   │   └── ExchangeRatesByDateDto.java # Grouped rates response
+│   │   │   │   ├── ConversionDto.java             # Conversion response (record)
+│   │   │   │   ├── CurrencyDto.java               # Currency response (record)
+│   │   │   │   ├── ErrorResponse.java             # Standard error response
+│   │   │   │   ├── ExchangeRateDataDto.java       # API data transfer (record)
+│   │   │   │   ├── ExchangeRateDto.java           # Exchange rate response (record)
+│   │   │   │   └── ExchangeRatesByDateDto.java    # Grouped rates response (record)
 │   │   │   ├── entity/
-│   │   │   │   ├── Currency.java              # Currency entity
-│   │   │   │   └── ExchangeRate.java          # Exchange rate entity
+│   │   │   │   ├── Currency.java                  # Currency JPA entity
+│   │   │   │   └── ExchangeRate.java              # Exchange rate JPA entity
 │   │   │   ├── exception/
-│   │   │   │   ├── GlobalExceptionHandler.java # Exception handling
-│   │   │   │   ├── InvalidParameterException.java
-│   │   │   │   └── ResourceNotFoundException.java
+│   │   │   │   ├── ExternalApiException.java      # External API failure (→ 503)
+│   │   │   │   ├── GlobalExceptionHandler.java    # Centralized exception handling
+│   │   │   │   ├── InvalidParameterException.java # Bad request (→ 400)
+│   │   │   │   └── ResourceNotFoundException.java # Not found (→ 404)
+│   │   │   ├── interceptor/
+│   │   │   │   └── StrictParameterValidationInterceptor.java  # Unknown param rejection
+│   │   │   ├── mapper/
+│   │   │   │   ├── CurrencyMapper.java            # Currency entity ↔ DTO
+│   │   │   │   └── ExchangeRateMapper.java        # ExchangeRate entity ↔ DTO
 │   │   │   ├── repository/
-│   │   │   │   ├── CurrencyRepository.java    # Currency data access
-│   │   │   │   └── ExchangeRateRepository.java # Exchange rate data access
+│   │   │   │   ├── CurrencyRepository.java        # Currency data access
+│   │   │   │   └── ExchangeRateRepository.java    # Exchange rate data access
 │   │   │   ├── scheduler/
-│   │   │   │   └── ScheduledExchangeRateUpdater.java # Daily sync job
+│   │   │   │   └── ScheduledExchangeRateUpdater.java  # Daily sync job (6 AM)
 │   │   │   └── service/
-│   │   │       ├── CurrencyService.java       # Currency business logic
-│   │   │       └── ExchangeRateService.java   # Exchange rate business logic
+│   │   │       ├── ICurrencyService.java              # Currency interface
+│   │   │       ├── CurrencyService.java               # Currency implementation
+│   │   │       ├── ICurrencyConversionService.java    # Conversion interface
+│   │   │       ├── CurrencyConversionService.java     # Conversion implementation
+│   │   │       ├── IExchangeRateQueryService.java     # Query interface (CQRS read)
+│   │   │       ├── ExchangeRateQueryService.java      # Query implementation
+│   │   │       ├── IExchangeRateSyncService.java      # Sync interface (CQRS write)
+│   │   │       └── ExchangeRateSyncService.java       # Sync implementation
 │   │   └── resources/
-│   │       ├── application.properties         # Main configuration
-│   │       ├── application-local.properties   # Local environment config
-│   │       └── data.sql                       # Initial currency data
+│   │       ├── application.properties             # Common configuration
+│   │       ├── application-local.properties       # Local dev config
+│   │       ├── application-prod.properties        # Production config
+│   │       └── data.sql                           # Initial currency seed data (29 currencies)
 │   └── test/
 │       └── java/com/crewmeister/forex/
+│           ├── ForexApplicationTests.java
 │           ├── client/
-│           │   └── BundesbankClientTest.java
+│           │   └── BundesbankClientTest.java          # 10 tests
 │           ├── controller/
-│           │   ├── CurrencyControllerTest.java
-│           │   └── ExchangeRateControllerTest.java
+│           │   ├── CurrencyControllerTest.java        # 4 tests
+│           │   └── ExchangeRateControllerTest.java    # 21 tests
 │           ├── integration/
-│           │   ├── ExchangeRateApiIntegrationTest.java
-│           │   ├── RepositoryIntegrationTest.java
-│           │   └── SchedulerIntegrationTest.java
+│           │   ├── ExchangeRateApiIntegrationTest.java # 13 tests
+│           │   ├── RepositoryIntegrationTest.java      # 12 tests
+│           │   └── SchedulerIntegrationTest.java       # 4 tests
 │           └── service/
-│               ├── CurrencyServiceTest.java
-│               └── ExchangeRateServiceTest.java
-├── pom.xml                                    # Maven configuration
-└── README.md                                  # This file
+│               ├── CurrencyServiceTest.java           # 3 tests
+│               └── ExchangeRateQueryServiceTest.java  # 8 tests
+├── pom.xml                                        # Maven configuration
+└── README.md                                      # This file
 ```
 
 ---
