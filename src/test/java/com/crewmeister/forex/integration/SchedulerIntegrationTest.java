@@ -3,7 +3,7 @@ package com.crewmeister.forex.integration;
 import com.crewmeister.forex.entity.ExchangeRate;
 import com.crewmeister.forex.repository.ExchangeRateRepository;
 import com.crewmeister.forex.scheduler.ScheduledExchangeRateUpdater;
-import com.crewmeister.forex.service.ExchangeRateService;
+import com.crewmeister.forex.service.IExchangeRateSyncService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import com.crewmeister.forex.config.DataLoader;
@@ -37,7 +37,7 @@ class SchedulerIntegrationTest {
     private ExchangeRateRepository exchangeRateRepository;
 
     @MockitoSpyBean
-    private ExchangeRateService exchangeRateService;
+    private IExchangeRateSyncService exchangeRateSyncService;
 
     @BeforeEach
     void setUp() {
@@ -52,17 +52,17 @@ class SchedulerIntegrationTest {
 
         scheduledExchangeRateUpdater.updateExchangeRates();
 
-        verify(exchangeRateService, times(1)).syncLatestExchangeRates();
+        verify(exchangeRateSyncService, times(1)).syncLatestExchangeRates();
     }
 
     @Test
     void updateExchangeRates_HandlesException() {
         doThrow(new RuntimeException("API Error"))
-                .when(exchangeRateService).syncLatestExchangeRates();
+                .when(exchangeRateSyncService).syncLatestExchangeRates();
 
         scheduledExchangeRateUpdater.updateExchangeRates();
 
-        verify(exchangeRateService, times(1)).syncLatestExchangeRates();
+        verify(exchangeRateSyncService, times(1)).syncLatestExchangeRates();
     }
 
     @Test
@@ -71,7 +71,7 @@ class SchedulerIntegrationTest {
     }
 
     @Test
-    void exchangeRateService_IsInjected() {
-        assertThat(exchangeRateService).isNotNull();
+    void exchangeRateSyncService_IsInjected() {
+        assertThat(exchangeRateSyncService).isNotNull();
     }
 }

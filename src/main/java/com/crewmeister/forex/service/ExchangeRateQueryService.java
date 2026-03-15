@@ -72,41 +72,14 @@ public class ExchangeRateQueryService implements IExchangeRateQueryService {
      * If direct pair (base/target) is not found, tries inverse pair (target/base) and calculates inverse rate.
      */
     @Transactional(readOnly = true)
+    @Override
     public ExchangeRateDto getExchangeRate(String base, String target, LocalDate date) {
         log.debug("Fetching exchange rate from {} to {} on {}", base, target, date);
 
         String upperBase = base.toUpperCase();
         String upperTarget = target.toUpperCase();
 
-        ExchangeRate exchangeRate;
-
-        if (date != null) {
-            exchangeRate = exchangeRateRepository
-                    .findBySourceCurrencyAndTargetCurrencyAndDate(upperBase, upperTarget, date)
-                    .orElse(null);
-
-            if (exchangeRate == null) {
-                exchangeRate = exchangeRateRepository
-                        .findBySourceCurrencyAndTargetCurrencyAndDate(upperTarget, upperBase, date)
-                        .map(this::calculateInverseRate)
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                String.format("Exchange rate not found for %s to %s on date %s",
-                                        upperBase, upperTarget, date)));
-            }
-        } else {
-            exchangeRate = exchangeRateRepository
-                    .findLatestRateBySourceAndTarget(upperBase, upperTarget)
-                    .orElse(null);
-
-            if (exchangeRate == null) {
-                exchangeRate = exchangeRateRepository
-                        .findLatestRateBySourceAndTarget(upperTarget, upperBase)
-                        .map(this::calculateInverseRate)
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                String.format("Exchange rate not found for %s to %s",
-                                        upperBase, upperTarget)));
-            }
-        }
+        ExchangeRate exchangeRate = findRateWithInverseFallback(upperBase, upperTarget, date);
 
         return exchangeRateMapper.toDto(exchangeRate);
     }
@@ -193,6 +166,32 @@ public class ExchangeRateQueryService implements IExchangeRateQueryService {
         }
 
         return ratesPage.map(exchangeRateMapper::toDto);
+    }
+
+    /**
+     * Finds an exchange rate for a currency pair, falling back to the inverse pair if not found.
+     * If date is provided, looks up rate for that date; otherwise returns the latest rate.
+     */
+    private ExchangeRate findRateWithInverseFallback(String base, String target, LocalDate date) {
+        ExchangeRate rate = (date != null)
+                ? exchangeRateRepository.findBySourceCurrencyAndTargetCurrencyAndDate(base, target, date).orElse(null)
+                : exchangeRateRepository.findLatestRateBySourceAndTarget(base, target).orElse(null);
+
+        if (rate != null) {
+            return rate;
+        }
+
+        String errorMsg = (date != null)
+                ? String.format("Exchange rate not found for %s to %s on date %s", base, target, date)
+                : String.format("Exchange rate not found for %s to %s", base, target);
+
+        return (date != null)
+                ? exchangeRateRepository.findBySourceCurrencyAndTargetCurrencyAndDate(target, base, date)
+                        .map(this::calculateInverseRate)
+                        .orElseThrow(() -> new ResourceNotFoundException(errorMsg))
+                : exchangeRateRepository.findLatestRateBySourceAndTarget(target, base)
+                        .map(this::calculateInverseRate)
+                        .orElseThrow(() -> new ResourceNotFoundException(errorMsg));
     }
 
     /**

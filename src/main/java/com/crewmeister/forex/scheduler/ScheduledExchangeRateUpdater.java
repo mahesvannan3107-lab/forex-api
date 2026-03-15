@@ -1,6 +1,6 @@
 package com.crewmeister.forex.scheduler;
 
-import com.crewmeister.forex.service.ExchangeRateService;
+import com.crewmeister.forex.service.IExchangeRateSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ScheduledExchangeRateUpdater {
 
-    private final ExchangeRateService exchangeRateService;
+    private final IExchangeRateSyncService exchangeRateSyncService;
 
     /**
      * Scheduled task to sync latest exchange rates daily.
@@ -27,7 +27,7 @@ public class ScheduledExchangeRateUpdater {
         log.info("=== Starting scheduled exchange rate update ===");
         
         try {
-            int recordsProcessed = exchangeRateService.syncLatestExchangeRates();
+            int recordsProcessed = exchangeRateSyncService.syncLatestExchangeRates();
             log.info("=== Scheduled exchange rate update completed successfully. Records processed: {} ===", 
                     recordsProcessed);
         } catch (Exception e) {

@@ -3,7 +3,8 @@ package com.crewmeister.forex.controller;
 import com.crewmeister.forex.dto.ConversionDto;
 import com.crewmeister.forex.dto.ExchangeRateDto;
 import com.crewmeister.forex.dto.ExchangeRatesByDateDto;
-import com.crewmeister.forex.service.ExchangeRateService;
+import com.crewmeister.forex.service.ICurrencyConversionService;
+import com.crewmeister.forex.service.IExchangeRateQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -35,7 +36,8 @@ public class ExchangeRateController {
 
     private static final int MAX_PAGE_SIZE = 100;
 
-    private final ExchangeRateService exchangeRateService;
+    private final IExchangeRateQueryService exchangeRateQueryService;
+    private final ICurrencyConversionService currencyConversionService;
 
     @Operation(
             summary = "Get exchange rates from base currency",
@@ -56,7 +58,7 @@ public class ExchangeRateController {
 
         log.info("GET /api/forex-rates/{} - date={}", base, date);
 
-        List<ExchangeRatesByDateDto> rates = exchangeRateService.getExchangeRatesFromGrouped(base, date);
+        List<ExchangeRatesByDateDto> rates = exchangeRateQueryService.getExchangeRatesFromGrouped(base, date);
         return ResponseEntity.ok(rates);
     }
 
@@ -76,7 +78,7 @@ public class ExchangeRateController {
 
         log.info("GET /api/forex-rates/{}/history", base);
 
-        List<ExchangeRatesByDateDto> rates = exchangeRateService.getExchangeRatesFromGroupedHistory(base);
+        List<ExchangeRatesByDateDto> rates = exchangeRateQueryService.getExchangeRatesFromGroupedHistory(base);
         return ResponseEntity.ok(rates);
     }
 
@@ -102,7 +104,7 @@ public class ExchangeRateController {
         log.info("GET /api/forex-rates/{}/history/paginated - page={}, size={}", base, page, size);
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<ExchangeRatesByDateDto> paginatedRates = exchangeRateService.getExchangeRatesFromGroupedPaginated(base, pageable);
+        Page<ExchangeRatesByDateDto> paginatedRates = exchangeRateQueryService.getExchangeRatesFromGroupedPaginated(base, pageable);
         return ResponseEntity.ok(paginatedRates);
     }
 
@@ -127,7 +129,7 @@ public class ExchangeRateController {
 
         log.info("GET /api/forex-rates/{}/{} - date={}", base, target, date);
 
-        ExchangeRateDto rate = exchangeRateService.getExchangeRate(base, target, date);
+        ExchangeRateDto rate = exchangeRateQueryService.getExchangeRate(base, target, date);
         return ResponseEntity.ok(rate);
     }
 
@@ -149,7 +151,7 @@ public class ExchangeRateController {
 
         log.info("GET /api/forex-rates/{}/{}/history", base, target);
 
-        List<ExchangeRateDto> rates = exchangeRateService.getExchangeRateHistory(base, target);
+        List<ExchangeRateDto> rates = exchangeRateQueryService.getExchangeRateHistory(base, target);
         return ResponseEntity.ok(rates);
     }
 
@@ -176,7 +178,7 @@ public class ExchangeRateController {
         log.info("GET /api/forex-rates/{}/{}/history/paginated - page={}, size={}", base, target, page, size);
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<ExchangeRateDto> paginatedRates = exchangeRateService.getExchangeRateHistoryPaginated(base, target, pageable);
+        Page<ExchangeRateDto> paginatedRates = exchangeRateQueryService.getExchangeRateHistoryPaginated(base, target, pageable);
         return ResponseEntity.ok(paginatedRates);
     }
 
@@ -204,7 +206,7 @@ public class ExchangeRateController {
         log.info("GET /api/forex-rates/convert?from={}&to={}&amount={}&date={}",
                 from, to, amount, date);
 
-        ConversionDto conversion = exchangeRateService.convertCurrency(from, to, amount, date);
+        ConversionDto conversion = currencyConversionService.convertCurrency(from, to, amount, date);
         return ResponseEntity.ok(conversion);
     }
 

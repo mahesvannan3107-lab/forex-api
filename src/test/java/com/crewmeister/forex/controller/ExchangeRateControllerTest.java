@@ -5,7 +5,8 @@ import com.crewmeister.forex.dto.ExchangeRateDto;
 import com.crewmeister.forex.dto.ExchangeRatesByDateDto;
 import com.crewmeister.forex.exception.InvalidParameterException;
 import com.crewmeister.forex.exception.ResourceNotFoundException;
-import com.crewmeister.forex.service.ExchangeRateService;
+import com.crewmeister.forex.service.ICurrencyConversionService;
+import com.crewmeister.forex.service.IExchangeRateQueryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -38,7 +39,10 @@ class ExchangeRateControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ExchangeRateService exchangeRateService;
+    private IExchangeRateQueryService exchangeRateQueryService;
+
+    @MockitoBean
+    private ICurrencyConversionService currencyConversionService;
 
     // ==================== GET /{base} ====================
 
@@ -54,7 +58,7 @@ class ExchangeRateControllerTest {
                 rates
         );
 
-        when(exchangeRateService.getExchangeRatesFromGrouped("EUR", null))
+        when(exchangeRateQueryService.getExchangeRatesFromGrouped("EUR", null))
                 .thenReturn(Collections.singletonList(dto));
 
         mockMvc.perform(get("/api/forex-rates/EUR"))
@@ -73,7 +77,7 @@ class ExchangeRateControllerTest {
 
         ExchangeRatesByDateDto dto = new ExchangeRatesByDateDto(testDate, "EUR", rates);
 
-        when(exchangeRateService.getExchangeRatesFromGrouped("EUR", testDate))
+        when(exchangeRateQueryService.getExchangeRatesFromGrouped("EUR", testDate))
                 .thenReturn(Collections.singletonList(dto));
 
         mockMvc.perform(get("/api/forex-rates/EUR")
@@ -101,7 +105,7 @@ class ExchangeRateControllerTest {
                 rates
         );
 
-        when(exchangeRateService.getExchangeRatesFromGroupedHistory("EUR"))
+        when(exchangeRateQueryService.getExchangeRatesFromGroupedHistory("EUR"))
                 .thenReturn(Collections.singletonList(dto));
 
         mockMvc.perform(get("/api/forex-rates/EUR/history"))
@@ -133,7 +137,7 @@ class ExchangeRateControllerTest {
                 10
         );
 
-        when(exchangeRateService.getExchangeRatesFromGroupedPaginated(eq("EUR"), any()))
+        when(exchangeRateQueryService.getExchangeRatesFromGroupedPaginated(eq("EUR"), any()))
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/forex-rates/EUR/history/paginated")
@@ -165,7 +169,7 @@ class ExchangeRateControllerTest {
                 9
         );
 
-        when(exchangeRateService.getExchangeRatesFromGroupedPaginated(eq("EUR"), any()))
+        when(exchangeRateQueryService.getExchangeRatesFromGroupedPaginated(eq("EUR"), any()))
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/forex-rates/EUR/history/paginated")
@@ -186,7 +190,7 @@ class ExchangeRateControllerTest {
                 0
         );
 
-        when(exchangeRateService.getExchangeRatesFromGroupedPaginated(eq("EUR"), any()))
+        when(exchangeRateQueryService.getExchangeRatesFromGroupedPaginated(eq("EUR"), any()))
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/forex-rates/EUR/history/paginated"))
@@ -214,7 +218,7 @@ class ExchangeRateControllerTest {
                 "1 EUR = 1.1641 USD"
         );
 
-        when(exchangeRateService.getExchangeRate("EUR", "USD", null))
+        when(exchangeRateQueryService.getExchangeRate("EUR", "USD", null))
                 .thenReturn(dto);
 
         mockMvc.perform(get("/api/forex-rates/EUR/USD"))
@@ -237,7 +241,7 @@ class ExchangeRateControllerTest {
                 "1 EUR = 1.1641 USD"
         );
 
-        when(exchangeRateService.getExchangeRate("EUR", "USD", testDate))
+        when(exchangeRateQueryService.getExchangeRate("EUR", "USD", testDate))
                 .thenReturn(dto);
 
         mockMvc.perform(get("/api/forex-rates/EUR/USD")
@@ -248,7 +252,7 @@ class ExchangeRateControllerTest {
 
     @Test
     void getExchangeRate_NotFound_Returns404() throws Exception {
-        when(exchangeRateService.getExchangeRate(anyString(), anyString(), any()))
+        when(exchangeRateQueryService.getExchangeRate(anyString(), anyString(), any()))
                 .thenThrow(new ResourceNotFoundException("Exchange rate not found"));
 
         mockMvc.perform(get("/api/forex-rates/EUR/XXX"))
@@ -279,7 +283,7 @@ class ExchangeRateControllerTest {
                 "1 EUR = 1.1600 USD"
         );
 
-        when(exchangeRateService.getExchangeRateHistory("EUR", "USD"))
+        when(exchangeRateQueryService.getExchangeRateHistory("EUR", "USD"))
                 .thenReturn(Arrays.asList(dto1, dto2));
 
         mockMvc.perform(get("/api/forex-rates/EUR/USD/history"))
@@ -312,7 +316,7 @@ class ExchangeRateControllerTest {
                 100
         );
 
-        when(exchangeRateService.getExchangeRateHistoryPaginated(eq("EUR"), eq("USD"), any()))
+        when(exchangeRateQueryService.getExchangeRateHistoryPaginated(eq("EUR"), eq("USD"), any()))
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/forex-rates/EUR/USD/history/paginated")
@@ -339,7 +343,7 @@ class ExchangeRateControllerTest {
                 new BigDecimal("1.1641")
         );
 
-        when(exchangeRateService.convertCurrency("EUR", "USD", new BigDecimal("100"), null))
+        when(currencyConversionService.convertCurrency("EUR", "USD", new BigDecimal("100"), null))
                 .thenReturn(dto);
 
         mockMvc.perform(get("/api/forex-rates/convert")
@@ -366,7 +370,7 @@ class ExchangeRateControllerTest {
                 new BigDecimal("1.1641")
         );
 
-        when(exchangeRateService.convertCurrency("EUR", "USD", new BigDecimal("100"), testDate))
+        when(currencyConversionService.convertCurrency("EUR", "USD", new BigDecimal("100"), testDate))
                 .thenReturn(dto);
 
         mockMvc.perform(get("/api/forex-rates/convert")
@@ -408,7 +412,7 @@ class ExchangeRateControllerTest {
 
     @Test
     void convertCurrency_InvalidAmount_Returns400() throws Exception {
-        when(exchangeRateService.convertCurrency(anyString(), anyString(), any(), any()))
+        when(currencyConversionService.convertCurrency(anyString(), anyString(), any(), any()))
                 .thenThrow(new InvalidParameterException("'amount' must be greater than zero"));
 
         mockMvc.perform(get("/api/forex-rates/convert")
@@ -421,7 +425,7 @@ class ExchangeRateControllerTest {
 
     @Test
     void convertCurrency_SameCurrency_Returns400() throws Exception {
-        when(exchangeRateService.convertCurrency(anyString(), anyString(), any(), any()))
+        when(currencyConversionService.convertCurrency(anyString(), anyString(), any(), any()))
                 .thenThrow(new InvalidParameterException("'from' and 'to' currencies must be different"));
 
         mockMvc.perform(get("/api/forex-rates/convert")
