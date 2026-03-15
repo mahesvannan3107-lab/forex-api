@@ -4,7 +4,10 @@ import com.crewmeister.forex.config.BundesbankApiConfig;
 import com.crewmeister.forex.exception.ExternalApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -40,7 +43,14 @@ public class BundesbankClient {
      * Fetches exchange rates for all currencies from Bundesbank API in a single call.
      * Uses wildcard pattern to get all available currencies.
      * Returns a list of ExchangeRateDataDto with all CSV columns.
+     * 
+     * Retries up to 3 times with exponential backoff (1s, 2s, 4s) on transient failures.
      */
+    @Retryable(
+            retryFor = { RestClientException.class },
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
     public List<ExchangeRateDataDto> fetchAllExchangeRates() {
         try {
             // Wildcard API call: D..EUR.BB.AC.000 fetches all currencies
@@ -144,7 +154,14 @@ public class BundesbankClient {
     /**
      * Fetches only the latest exchange rates for all currencies (1 observation per currency).
      * Used for daily scheduled updates.
+     * 
+     * Retries up to 3 times with exponential backoff (1s, 2s, 4s) on transient failures.
      */
+    @Retryable(
+            retryFor = { RestClientException.class },
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
     public List<ExchangeRateDataDto> fetchLatestExchangeRates() {
         try {
             // Fetch only the latest observation for all currencies
