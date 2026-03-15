@@ -2,16 +2,21 @@ package com.crewmeister.forex.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "currencies")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"createdAt", "updatedAt", "createdBy", "updatedBy"})
 public class Currency {
 
     @Id
@@ -62,4 +67,17 @@ public class Currency {
 
     @Column(name = "updated_by", length = 100)
     private String updatedBy;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Currency currency = (Currency) o;
+        return Objects.equals(code, currency.code);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(code);
+    }
 }

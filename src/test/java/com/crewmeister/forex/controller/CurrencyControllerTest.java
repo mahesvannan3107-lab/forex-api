@@ -1,7 +1,7 @@
 package com.crewmeister.forex.controller;
 
 import com.crewmeister.forex.dto.CurrencyDto;
-import com.crewmeister.forex.service.CurrencyService;
+import com.crewmeister.forex.service.ICurrencyService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -24,7 +24,7 @@ class CurrencyControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private CurrencyService currencyService;
+    private ICurrencyService currencyService;
 
     @Test
     void getAllCurrencies_ReturnsAllCurrencies() throws Exception {

@@ -1,7 +1,7 @@
 package com.crewmeister.forex.controller;
 
 import com.crewmeister.forex.dto.CurrencyDto;
-import com.crewmeister.forex.service.CurrencyService;
+import com.crewmeister.forex.service.ICurrencyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -24,7 +24,7 @@ import java.util.List;
 @Tag(name = "Currencies", description = "Currency management endpoints")
 public class CurrencyController {
 
-    private final CurrencyService currencyService;
+    private final ICurrencyService currencyService;
 
     @Operation(
             summary = "Get all currencies",

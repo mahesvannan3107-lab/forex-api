@@ -2,12 +2,14 @@ package com.crewmeister.forex.service;
 
 import com.crewmeister.forex.dto.CurrencyDto;
 import com.crewmeister.forex.entity.Currency;
+import com.crewmeister.forex.mapper.CurrencyMapper;
 import com.crewmeister.forex.repository.CurrencyRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
@@ -22,6 +24,9 @@ class CurrencyServiceTest {
 
     @Mock
     private CurrencyRepository currencyRepository;
+
+    @Spy
+    private CurrencyMapper currencyMapper;
 
     @InjectMocks
     private CurrencyService currencyService;
@@ -52,12 +57,12 @@ class CurrencyServiceTest {
         List<CurrencyDto> result = currencyService.getAllCurrencies();
 
         assertThat(result).hasSize(3);
-        assertThat(result.get(0).getCode()).isEqualTo("EUR");
-        assertThat(result.get(0).getName()).isEqualTo("Euro");
-        assertThat(result.get(1).getCode()).isEqualTo("USD");
-        assertThat(result.get(1).getName()).isEqualTo("US Dollar");
-        assertThat(result.get(2).getCode()).isEqualTo("GBP");
-        assertThat(result.get(2).getName()).isEqualTo("British Pound");
+        assertThat(result.get(0).code()).isEqualTo("EUR");
+        assertThat(result.get(0).name()).isEqualTo("Euro");
+        assertThat(result.get(1).code()).isEqualTo("USD");
+        assertThat(result.get(1).name()).isEqualTo("US Dollar");
+        assertThat(result.get(2).code()).isEqualTo("GBP");
+        assertThat(result.get(2).name()).isEqualTo("British Pound");
         
         verify(currencyRepository).findAll();
     }
@@ -84,7 +89,7 @@ class CurrencyServiceTest {
 
         assertThat(result).hasSize(1);
         CurrencyDto dto = result.get(0);
-        assertThat(dto.getCode()).isEqualTo("INR");
-        assertThat(dto.getName()).isEqualTo("Indian Rupee");
+        assertThat(dto.code()).isEqualTo("INR");
+        assertThat(dto.name()).isEqualTo("Indian Rupee");
     }
 }
