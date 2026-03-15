@@ -5,6 +5,7 @@ import com.crewmeister.forex.exception.ExternalApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
@@ -15,7 +16,6 @@ import java.io.BufferedReader;
 import java.io.StringReader;
 import com.crewmeister.forex.dto.ExchangeRateDataDto;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -52,25 +52,20 @@ public class BundesbankClient {
             backoff = @Backoff(delay = 1000, multiplier = 2)
     )
     public List<ExchangeRateDataDto> fetchAllExchangeRates() {
-        try {
-            // Wildcard API call: D..EUR.BB.AC.000 fetches all currencies
-            String url = buildApiUrl(apiConfig.getDefaultObservations());
+        // Wildcard API call: D..EUR.BB.AC.000 fetches all currencies
+        String url = buildApiUrl(apiConfig.getDefaultObservations());
 
-            log.info("Fetching all exchange rates from: {}", url);
-            String csvData = restTemplate.getForObject(url, String.class);
+        log.info("Fetching all exchange rates from: {}", url);
+        String csvData = restTemplate.getForObject(url, String.class);
 
-            if (csvData == null || csvData.isEmpty()) {
-                log.warn("No data received from Bundesbank API");
-                return Collections.emptyList();
-            }
-
-            List<ExchangeRateDataDto> result = parseAllCurrenciesData(csvData);
-            log.info("Successfully fetched {} exchange rate records", result.size());
-            return result;
-
-        } catch (Exception e) {
-            throw new ExternalApiException("Failed to fetch exchange rates from Bundesbank API", e);
+        if (csvData == null || csvData.isEmpty()) {
+            log.warn("No data received from Bundesbank API");
+            return Collections.emptyList();
         }
+
+        List<ExchangeRateDataDto> result = parseAllCurrenciesData(csvData);
+        log.info("Successfully fetched {} exchange rate records", result.size());
+        return result;
     }
 
     /**
@@ -163,25 +158,30 @@ public class BundesbankClient {
             backoff = @Backoff(delay = 1000, multiplier = 2)
     )
     public List<ExchangeRateDataDto> fetchLatestExchangeRates() {
-        try {
-            // Fetch only the latest observation for all currencies
-            String url = buildApiUrl(1);
+        // Fetch only the latest observation for all currencies
+        String url = buildApiUrl(1);
 
-            log.info("Fetching latest exchange rates from: {}", url);
-            String csvData = restTemplate.getForObject(url, String.class);
+        log.info("Fetching latest exchange rates from: {}", url);
+        String csvData = restTemplate.getForObject(url, String.class);
 
-            if (csvData == null || csvData.isEmpty()) {
-                log.warn("No data received from Bundesbank API");
-                return Collections.emptyList();
-            }
-
-            List<ExchangeRateDataDto> result = parseAllCurrenciesData(csvData);
-            log.info("Successfully fetched {} latest exchange rate records", result.size());
-            return result;
-
-        } catch (Exception e) {
-            throw new ExternalApiException("Failed to fetch latest exchange rates from Bundesbank API", e);
+        if (csvData == null || csvData.isEmpty()) {
+            log.warn("No data received from Bundesbank API");
+            return Collections.emptyList();
         }
+
+        List<ExchangeRateDataDto> result = parseAllCurrenciesData(csvData);
+        log.info("Successfully fetched {} latest exchange rate records", result.size());
+        return result;
+    }
+
+    /**
+     * Recovery method called after all retry attempts are exhausted.
+     * Wraps the final exception into ExternalApiException for proper HTTP 503 handling.
+     */
+    @Recover
+    public List<ExchangeRateDataDto> recoverFromApiFailure(RestClientException e) {
+        log.error("All retry attempts exhausted for Bundesbank API call: {}", e.getMessage());
+        throw new ExternalApiException("Failed to fetch exchange rates from Bundesbank API after retries", e);
     }
 
     /**

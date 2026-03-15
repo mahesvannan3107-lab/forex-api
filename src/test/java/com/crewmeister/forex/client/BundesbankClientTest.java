@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-import com.crewmeister.forex.exception.ExternalApiException;
+import org.springframework.web.client.RestClientException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -88,13 +88,13 @@ class BundesbankClientTest {
     }
 
     @Test
-    void fetchAllExchangeRates_ExceptionThrown_ThrowsExternalApiException() {
+    void fetchAllExchangeRates_ExceptionThrown_PropagatesRestClientException() {
         when(restTemplate.getForObject(anyString(), eq(String.class)))
-                .thenThrow(new RuntimeException("API Error"));
+                .thenThrow(new RestClientException("API Error"));
 
         assertThatThrownBy(() -> bundesbankClient.fetchAllExchangeRates())
-                .isInstanceOf(ExternalApiException.class)
-                .hasMessageContaining("Failed to fetch exchange rates");
+                .isInstanceOf(RestClientException.class)
+                .hasMessageContaining("API Error");
     }
 
     @Test
@@ -124,13 +124,13 @@ class BundesbankClientTest {
     }
 
     @Test
-    void fetchLatestExchangeRates_ExceptionThrown_ThrowsExternalApiException() {
+    void fetchLatestExchangeRates_ExceptionThrown_PropagatesRestClientException() {
         when(restTemplate.getForObject(anyString(), eq(String.class)))
-                .thenThrow(new RuntimeException("Network error"));
+                .thenThrow(new RestClientException("Network error"));
 
         assertThatThrownBy(() -> bundesbankClient.fetchLatestExchangeRates())
-                .isInstanceOf(ExternalApiException.class)
-                .hasMessageContaining("Failed to fetch latest exchange rates");
+                .isInstanceOf(RestClientException.class)
+                .hasMessageContaining("Network error");
     }
 
     @Test
